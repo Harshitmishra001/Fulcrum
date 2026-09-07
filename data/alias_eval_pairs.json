@@ -72,12 +72,12 @@
   "authorities_heuristic_cases": [
     {
       "context": "The authorities reaffirmed their commitment to the 4 percent inflation target and kept the policy repo rate unchanged.",
-      "expected_resolution": "RBI",
+      "expected_resolution": "Reserve Bank of India",
       "expected_confidence": 0.7
     },
     {
       "context": "The authorities reiterated their commitment to reach a central government fiscal deficit of 4.4 percent of GDP by 2025-26.",
-      "expected_resolution": "GoI",
+      "expected_resolution": "Government of India",
       "expected_confidence": 0.7
     },
     {
