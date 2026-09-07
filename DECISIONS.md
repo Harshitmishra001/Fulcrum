@@ -43,6 +43,12 @@
 33. No Force-Directed Graph Visualization
 34. Fiscal Year Normalization - Lookup Table, Not Parser
 35. Unit Normalization - Small Fixed Table
+36. Model Selection - GPT-4o-mini via OpenRouter (Budget-Constrained)
+37. Anchor Metrics Confirmed for the Four Required Cases (Step 0)
+38. Hybrid Development Strategy — Assistant-Curated Ground Truth and Pre-Cached Database
+39. Pipeline Autonomy & Division of Labor (Generalization Safeguard)
+40. Negative Token Filters & Concept Cluster Guards for Financial Attribute Matching
+41. Single-Batch Vector Embedding Precomputation with In-Memory Caching
 
 ---
 
@@ -536,6 +542,30 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 
 ---
 
+## 40. Negative Token Filters & Concept Cluster Guards for Financial Attribute Matching
+
+**What we decided:** In `ComparisonEngine._attributes_match`, guard attribute comparison using explicit negative token filters (`debt`, `deficit`, `trade balance`, `current account`, `tax`, `food`) to block cross-metric comparisons where one metric is a denominator or component of another (e.g., "Real GDP Growth" vs "Central Govt Debt (% of GDP)"). Require exact concept cluster matches for core macroeconomic indicators, and require high vector similarity (>= 0.88) for semantic variants.
+
+**What we rejected:** Relying on unconstrained vector embedding similarity alone across all attributes.
+
+**The tradeoff:** Explicit negative keywords and concept clusters require domain-specific definitions in the comparison engine. If a novel macroeconomic ratio appears outside the defined clusters, it falls back to the high threshold (0.88).
+
+**Why we accepted it:** Embeddings treat terms like "GDP Growth" and "Debt-to-GDP" or "Trade Balance as % of GDP" as highly similar (~0.76-0.82) because they share heavy domain context tokens. Pure embedding matching causes the engine to compare a 6.5% growth rate against a 56.8% debt ratio, creating spurious contradictions. Negative token guards eliminate these denominator false-positives deterministically with zero latency.
+
+---
+
+## 41. Single-Batch Vector Embedding Precomputation with In-Memory Caching
+
+**What we decided:** Collect all unique entity and attribute strings across all active facts and pre-compute their normalized embeddings via `sentence-transformers` (`all-MiniLM-L6-v2`) in a single batched tensor operation before entering pairwise comparison loops. Cache vectors in memory (`self.emb_cache`) for fast dot-product cosine similarity.
+
+**What we rejected:** Calling `resolver.compute_similarity(s1, s2)` on-demand inside the nested O(N^2) candidate comparison loops.
+
+**The tradeoff:** Allocates upfront memory for the embedding tensor of all unique vocabulary terms during the comparison lifecycle.
+
+**Why we accepted it:** With 230 active facts, pairwise comparison evaluates thousands of entity and attribute pairs. On-demand inference in Python/PyTorch took 45+ seconds and caused high CPU utilization. Vectorizing all unique strings upfront in a single batch takes < 0.4 seconds, reducing the total comparison engine execution time from 45 seconds to ~2.2 seconds with zero loss of mathematical precision.
+
+---
+
 ## Summary Table
 
 | # | Decision | Alternative Rejected | Core Reason Accepted |
@@ -579,3 +609,5 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 | 37 | Verified anchor metrics for 4 cases | Speculative/unverified metrics | Guarantees all 4 required cases exist in data |
 | 38 | Hybrid assistant curation & pre-cache | Naive automated re-runs | Saves 75-85% of API budget; instant demo load |
 | 39 | Autonomous code execution (no mock facts) | Pre-populating facts manually | Guarantees pipeline works on foreign holdout PDFs |
+| 40 | Negative token & cluster guards | Pure embedding similarity | Blocks denominator false-positives (Debt/GDP vs GDP growth) |
+| 41 | Batch embedding precomputation | On-demand pair-by-pair encoding | Cuts engine runtime from 45s to 2.2s via single tensor batch |
