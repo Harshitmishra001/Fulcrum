@@ -67,6 +67,45 @@ curl -X POST "http://127.0.0.1:8000/api/upload" -F "file=@sample.pdf"
 
 ---
 
+## 🔄 End-to-End Pipeline Flow
+
+```mermaid
+flowchart TD
+    subgraph S1["1. Document Ingestion"]
+        PDF["📄 PDF Document<br/>(Annual Report, Article IV, Earnings)"] --> CHUNKER["1. Structural Chunker<br/><code>src/parser/pdf_chunker.py</code><br/>• Splits tables and prose<br/>• Preserves header hierarchy<br/>• Detects silent parse failures"]
+    end
+
+    subgraph S2["2. Fact Extraction & Grounding"]
+        CHUNKER --> EXTRACTOR["2. Fact Extractor<br/><code>src/extractor/extractor.py</code><br/>• Schema-free extraction via LLM<br/>• Strict verbatim quote grounding<br/>• Rule-based confidence scoring (≥ 0.50)"]
+        EXTRACTOR --> NORMALIZER["3. Deterministic Normalizers<br/><code>src/normalizer/</code><br/>• <i>period_normalizer.py</i>: Fiscal vs Calendar<br/>• <i>unit_normalizer.py</i>: Standard units & tolerance<br/>• Zero-AI deterministic parsing"]
+    end
+
+    subgraph S3["3. Immediate Persistence"]
+        NORMALIZER --> DB[("4. Relational Database<br/><code>src/db/database.py</code> (SQLite)<br/>• Immediate fact commit per chunk<br/>• Run ID and active flags<br/>• Zero-loss checkpointing")]
+    end
+
+    subgraph S4["4. Resolution & Verification Engine"]
+        DB --> RESOLVER["5. Entity Resolver<br/><code>src/comparison/entity_resolver.py</code><br/>• Local embeddings (all-MiniLM-L6-v2)<br/>• 3 confidence tiers (≥0.85, 0.65, reject)<br/>• 'The Authorities' 3-sentence heuristic"]
+        RESOLVER --> ENGINE["6. Comparison & Reconciliation Engine<br/><code>src/comparison/engine.py</code><br/>• Attribute cluster & denominator guards<br/>• Assertion type guard (Stated vs Projection)<br/>• Tolerance check (±0.1pp / 1%)<br/>• Retrieve-then-classify reconciliation"]
+    end
+
+    subgraph S5["5. Interactive Delivery"]
+        ENGINE --> CARDS["7. Argument Cards Dashboard<br/><code>src/app.py</code> + Jinja / Tailwind<br/>• Corroboration & Contradiction badges<br/>• Side-by-side verbatim quotes & pages<br/>• Zero-key evaluator mode (pre-cached DB)"]
+    end
+
+    classDef stage fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#0f172a;
+    classDef nodeStyle fill:#ffffff,stroke:#3b82f6,stroke-width:1.5px,color:#1e293b;
+    classDef dbStyle fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e293b;
+    classDef cardStyle fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d;
+
+    class S1,S2,S3,S4,S5 stage;
+    class CHUNKER,EXTRACTOR,NORMALIZER,RESOLVER,ENGINE nodeStyle;
+    class DB dbStyle;
+    class CARDS cardStyle;
+```
+
+---
+
 ## 🏛 Architecture & Design Decisions
 
 Every technical decision, rejected alternative, and accepted tradeoff is documented in [`DECISIONS.md`](DECISIONS.md). Key highlights:
