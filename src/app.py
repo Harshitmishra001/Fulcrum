@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import shutil
 from pathlib import Path
@@ -92,23 +93,52 @@ async def trigger_comparison():
 
 @app.post("/api/upload")
 async def upload_pdf(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".pdf"):
+    raw_name = Path(file.filename).name if file.filename else "upload.pdf"
+    if not raw_name.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
-    uploads_dir = BASE_DIR / "uploads"
+    # Magic byte verification: Genuine PDFs must start with b"%PDF-"
+    header = file.file.read(5)
+    file.file.seek(0)
+    if not header.startswith(b"%PDF-"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file format: Not a genuine PDF document (missing %PDF- magic header)."
+        )
+
+    uploads_dir = (BASE_DIR / "uploads").resolve()
     uploads_dir.mkdir(exist_ok=True)
     
+    # Sanitize stem: allow only alphanumeric, hyphen, underscore
+    raw_stem = Path(raw_name).stem
+    safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', raw_stem)[:40]
+    if not safe_stem:
+        safe_stem = "document"
+
     file_id = uuid.uuid4().hex[:8]
-    clean_name = f"{file_id}_{file.filename}"
-    saved_path = uploads_dir / clean_name
+    safe_filename = f"{file_id}_{safe_stem}.pdf"
+    saved_path = (uploads_dir / safe_filename).resolve()
+
+    # Path traversal assertion: target must remain strictly inside uploads_dir
+    if not str(saved_path).startswith(str(uploads_dir)):
+        raise HTTPException(status_code=400, detail="Path traversal or invalid filename detected.")
 
     with open(saved_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     # Process uploaded PDF through the pipeline
-    doc_slug = Path(file.filename).stem[:20].lower().replace(" ", "_")
-    chunker = PDFChunker(doc_slug=doc_slug, pdf_path=str(saved_path))
-    chunks = chunker.chunk_document(max_pages=10) # process first 10 pages for snappy demo
+    doc_slug = safe_stem.lower()
+    try:
+        chunker = PDFChunker(doc_slug=doc_slug, pdf_path=str(saved_path))
+        chunks = chunker.chunk_document(max_pages=10) # process first 10 pages for snappy demo
+    except Exception as e:
+        # Clean up invalid uploaded file
+        if saved_path.exists():
+            saved_path.unlink()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unable to parse PDF document. File may be corrupted or encrypted: {str(e)}"
+        )
 
     extractor = FactExtractor()
     run_id = f"upload_{file_id}"

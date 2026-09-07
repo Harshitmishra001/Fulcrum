@@ -11,16 +11,15 @@ This document records all 12 concrete critiques raised during the adversarial gr
 ## 1. Security & Concurrency Vulnerabilities
 
 ### Critic 1.1: Path Traversal & Arbitrary File Overwrite
-* **File / Location:** [`src/app.py:102`](src/app.py#L102)
-* **The Issue:** The upload endpoint directly uses the user-controlled `file.filename` inside `saved_path = uploads_dir / f"{file_id}_{file.filename}"`. A malicious client sending a filename like `../../../../config.py` or Windows relative paths can escape `uploads/` and overwrite server source files or system executables.
-* **Fix Option 1 (Pragmatic / Immediate):**
-  * Use `os.path.basename` or `Path(file.filename).name`, strip all non-alphanumeric characters (except dots/underscores), and append a UUID:
-    ```python
-    safe_filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', Path(file.filename).name)
-    saved_path = uploads_dir / f"{file_id}_{safe_filename}"
-    ```
-* **Fix Option 2 (Production-Grade):**
-  * Discard client-supplied filenames entirely for storage. Store uploaded files under content-addressable or UUID keys (e.g. `uploads/{uuid4()}.pdf`), storing the user's original display name separately in the SQLite metadata table. Enforce a strict MIME-type / magic-byte verification check (reject non-PDF byte signatures).
+* **Status:** ✅ **RESOLVED** (Commit verified with automated test suite `tests/test_upload_security.py`)
+* **File / Location:** [`src/app.py:93-145`](src/app.py#L93-L145)
+* **The Issue:** The upload endpoint directly used the user-controlled `file.filename` inside `saved_path = uploads_dir / f"{file_id}_{file.filename}"`. A malicious client sending a filename like `../../../../config.py` or Windows relative paths could escape `uploads/` and overwrite server source files or system executables.
+* **Remediation Implemented:**
+  1. **Strict Basename & Regex Sanitization:** Extracts `Path(file.filename).name`, strips directory separators, sanitizes stem to alphanumeric/hyphen/underscore (`[a-zA-Z0-9_-]`), truncates length, and prefixes with an 8-character UUID.
+  2. **Magic Byte Verification:** Inspects the first 5 bytes of the file stream to guarantee it matches `b"%PDF-"` before saving to disk.
+  3. **Strict Path Containment Assertion:** Resolves destination path and asserts `str(saved_path).startswith(str(uploads_dir))`.
+  4. **Corrupt PDF Exception Shield:** Wrapped `chunker.chunk_document()` with graceful exception handling to return clean HTTP 400s rather than 500 crashes on corrupt or encrypted files.
+* **Verification:** `tests/test_upload_security.py` passes 4/4 automated tests (non-PDF rejected, fake PDF magic bytes rejected, corrupt PDF handled, traversal filename sanitized).
 
 ---
 
