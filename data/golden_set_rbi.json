@@ -1,0 +1,482 @@
+[
+  {
+    "id": "gold_01",
+    "entity": "India",
+    "attribute": "Real GDP Growth",
+    "value": 6.5,
+    "unit": "%",
+    "period": {
+      "raw_text": "2025-26",
+      "period_type": "fiscal_year",
+      "normalized": "FY2026"
+    },
+    "assertion_type": "projection",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 17,
+    "source_quote": "real GDP growth for 2025-26 is projected at 6.5 per cent, with risks evenly balanced."
+  },
+  {
+    "id": "gold_02",
+    "entity": "India",
+    "attribute": "Headline CPI Inflation",
+    "value": 4.6,
+    "unit": "%",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 17,
+    "source_quote": "headline inflation eased by 73 bps to 4.6 per cent in 2024-25."
+  },
+  {
+    "id": "gold_03",
+    "entity": "Central Government",
+    "attribute": "Effective Capital Expenditure (% of GDP)",
+    "value": 4.3,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2025-26",
+      "period_type": "fiscal_year",
+      "normalized": "FY2026"
+    },
+    "assertion_type": "projection",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 18,
+    "source_quote": "effective capital expenditure budgeted to rise to 4.3 per cent of GDP in 2025-26"
+  },
+  {
+    "id": "gold_04",
+    "entity": "Central Government",
+    "attribute": "Effective Capital Expenditure (% of GDP)",
+    "value": 4.0,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2024-25 (RE)",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 18,
+    "source_quote": "from 4.0 per cent in 2024-25 (RE)."
+  },
+  {
+    "id": "gold_05",
+    "entity": "India",
+    "attribute": "Nuclear Power Capacity Target",
+    "value": 100,
+    "unit": "GW",
+    "period": {
+      "raw_text": "2047",
+      "period_type": "calendar_year",
+      "normalized": "CY2047"
+    },
+    "assertion_type": "projection",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 17,
+    "source_quote": "Union Budget 2025-26 has set the target of 100 gigawatt (GW) of nuclear power capacity by 2047."
+  },
+  {
+    "id": "gold_06",
+    "entity": "State Governments",
+    "attribute": "Additional Borrowing Limit",
+    "value": 0.5,
+    "unit": "% of GSDP",
+    "period": {
+      "raw_text": "2025-26",
+      "period_type": "fiscal_year",
+      "normalized": "FY2026"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 17,
+    "source_quote": "permitting states an additional borrowing limit of 0.5 per cent of GSDP"
+  },
+  {
+    "id": "gold_07",
+    "entity": "Central Government",
+    "attribute": "Gross Fiscal Deficit Target (% of GDP)",
+    "value": 4.4,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2025-26 (BE)",
+      "period_type": "fiscal_year",
+      "normalized": "FY2026"
+    },
+    "assertion_type": "projection",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 18,
+    "source_quote": "targeting the GFD at 4.4 per cent of GDP in 2025-26 (BE)"
+  },
+  {
+    "id": "gold_08",
+    "entity": "Central Government",
+    "attribute": "Gross Fiscal Deficit (% of GDP)",
+    "value": 4.7,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2024-25 (RE)",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 18,
+    "source_quote": "down from 4.7 per cent in 2024-25 (RE)."
+  },
+  {
+    "id": "gold_09",
+    "entity": "India",
+    "attribute": "Headline CPI Inflation",
+    "value": 5.4,
+    "unit": "%",
+    "period": {
+      "raw_text": "2023-24",
+      "period_type": "fiscal_year",
+      "normalized": "FY2024"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 38,
+    "source_quote": "headline inflation moderated to an average of 4.6 per cent during 2024-25 from 5.4 per cent during 2023-24"
+  },
+  {
+    "id": "gold_10",
+    "entity": "Central Government",
+    "attribute": "Grants for creation of capital assets",
+    "value": 1.2,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2025-26 (BE)",
+      "period_type": "fiscal_year",
+      "normalized": "FY2026"
+    },
+    "assertion_type": "projection",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 71,
+    "source_quote": "grants-in-aid for creation of capital assets rising to 1.2 per cent of GDP in 2025-26 (BE)"
+  },
+  {
+    "id": "gold_11",
+    "entity": "National Income Data",
+    "attribute": "GDP Reference Basis",
+    "value": "Second Advance Estimates (SAE)",
+    "unit": null,
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 8,
+    "source_quote": "All references to GDP data in this Report are based on the Second Advance Estimates (SAE) of National Income 2024-25"
+  },
+  {
+    "id": "gold_12",
+    "entity": "Monetary Policy Committee",
+    "attribute": "Monetary Policy Stance",
+    "value": "accommodative",
+    "unit": null,
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 18,
+    "source_quote": "the MPC also decided to change the stance from neutral to accommodative."
+  },
+  {
+    "id": "gold_13",
+    "entity": "India",
+    "attribute": "Real GDP Growth at Market Prices",
+    "value": 6.5,
+    "unit": "% change",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "I.1 Real GDP at Market Prices (% change)* 7.9 6.7 7.4 7.6 9.2 6.5"
+  },
+  {
+    "id": "gold_14",
+    "entity": "India",
+    "attribute": "Real GDP Growth at Market Prices",
+    "value": 9.2,
+    "unit": "% change",
+    "period": {
+      "raw_text": "2023-24",
+      "period_type": "fiscal_year",
+      "normalized": "FY2024"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "I.1 Real GDP at Market Prices (% change)* 7.9 6.7 7.4 7.6 9.2 6.5"
+  },
+  {
+    "id": "gold_15",
+    "entity": "India",
+    "attribute": "Real GVA Growth at Basic Prices",
+    "value": 6.4,
+    "unit": "% change",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "I.2 Real GVA at Basic Prices (% change)* 7.7 6.3 7.0 7.2 8.6 6.4"
+  },
+  {
+    "id": "gold_16",
+    "entity": "India",
+    "attribute": "Foodgrains Production",
+    "value": 330.9,
+    "unit": "Million Tonnes",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "I.3 Foodgrains Production (Million Tonnes)** 213.6 248.8 269.8 329.7 332.3 330.9"
+  },
+  {
+    "id": "gold_17",
+    "entity": "India",
+    "attribute": "Foodgrains Stocks",
+    "value": 74.9,
+    "unit": "Million Tonnes",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "I.4 a) Food Stocks (Million Tonnes)*** 18.6 50.1 44.6 51.7 60.7 74.9"
+  },
+  {
+    "id": "gold_18",
+    "entity": "India",
+    "attribute": "Foodgrains Procurement",
+    "value": 77.9,
+    "unit": "Million Tonnes",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "b) Procurement (Million Tonnes) 39.3 61.3 66.5 73.1 78.7 77.9"
+  },
+  {
+    "id": "gold_19",
+    "entity": "India",
+    "attribute": "Index of Industrial Production Growth",
+    "value": 4.0,
+    "unit": "% change",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "I.5 Index of Industrial Production (% change) 11.2 4.6 4.0 5.2 5.9 4.0"
+  },
+  {
+    "id": "gold_20",
+    "entity": "India",
+    "attribute": "Index of Eight Core Industries Growth",
+    "value": 4.5,
+    "unit": "% change",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "I.6 Index of Eight Core Industries (% change) 5.9 4.9 4.3 7.8 7.6 4.5"
+  },
+  {
+    "id": "gold_21",
+    "entity": "India",
+    "attribute": "Consumer Price Index (CPI) Combined Average",
+    "value": 4.6,
+    "unit": "% change",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "II.1 Consumer Price Index (CPI) Combined (average % change) - - 4.5 6.7 5.4 4.6"
+  },
+  {
+    "id": "gold_22",
+    "entity": "India",
+    "attribute": "CPI Industrial Workers Average",
+    "value": 3.4,
+    "unit": "% change",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "II.2 CPI-Industrial Workers (IW) [average % change] 5.0 10.3 4.9 6.1 5.2 3.4"
+  },
+  {
+    "id": "gold_23",
+    "entity": "Central Government",
+    "attribute": "Gross Fiscal Deficit (% of GDP)",
+    "value": 4.7,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "d) Gross Fiscal Deficit 3.7 5.4 3.7 6.5 5.5 4.7"
+  },
+  {
+    "id": "gold_24",
+    "entity": "Central Government",
+    "attribute": "Revenue Deficit (% of GDP)",
+    "value": 0.6,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "a) Revenue Deficit (% of GDP) 0.3 -0.1 0.1 0.2 0.3 0.6"
+  },
+  {
+    "id": "gold_25",
+    "entity": "Central Government",
+    "attribute": "Primary Deficit (% of GDP)",
+    "value": 1.8,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 91,
+    "source_quote": "c) Primary Deficit (% of GDP) 0.3 0.6 1.2 1.0 1.3 1.8"
+  },
+  {
+    "id": "gold_26",
+    "entity": "India",
+    "attribute": "Current Account Balance (% of GDP)",
+    "value": -1.3,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 92,
+    "source_quote": "e) Current Account Balance/GDP (%) -0.3 -3.3 -1.4 -2.0 -0.7 -1.3"
+  },
+  {
+    "id": "gold_27",
+    "entity": "India",
+    "attribute": "Current Account Balance (% of GDP)",
+    "value": -0.7,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2023-24",
+      "period_type": "fiscal_year",
+      "normalized": "FY2024"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 92,
+    "source_quote": "e) Current Account Balance/GDP (%) -0.3 -3.3 -1.4 -2.0 -0.7 -1.3"
+  },
+  {
+    "id": "gold_28",
+    "entity": "India",
+    "attribute": "Merchandise Exports Growth",
+    "value": 1.8,
+    "unit": "% change",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 92,
+    "source_quote": "a) Merchandise Exports (% change) 25.3 12.2 1.6 6.3 -3.2 1.8"
+  },
+  {
+    "id": "gold_29",
+    "entity": "India",
+    "attribute": "Merchandise Imports Growth",
+    "value": 7.8,
+    "unit": "% change",
+    "period": {
+      "raw_text": "2024-25",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 92,
+    "source_quote": "b) Merchandise Imports (% change) 32.3 9.7 2.7 16.6 -4.9 7.8"
+  },
+  {
+    "id": "gold_30",
+    "entity": "Central Government",
+    "attribute": "Gross Tax Revenue (% of GDP)",
+    "value": 11.6,
+    "unit": "% of GDP",
+    "period": {
+      "raw_text": "2024-25 (RE)",
+      "period_type": "fiscal_year",
+      "normalized": "FY2025"
+    },
+    "assertion_type": "stated",
+    "source_doc": "02-rbi-annual-report-2024-25-excerpt.pdf",
+    "source_page": 70,
+    "source_quote": "II. Gross Tax Revenue (a+b) 11.0 10.0 10.2 11.5 11.4 11.5 11.6 12.0"
+  }
+]

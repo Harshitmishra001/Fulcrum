@@ -1,0 +1,186 @@
+import os
+import json
+import time
+import uuid
+import re
+from typing import List, Dict, Any, Optional
+from openai import OpenAI
+from src.config import (
+    OPENROUTER_API_KEY, LLM_BASE_URL, LLM_MODEL, CONFIDENCE_THRESHOLD
+)
+from src.normalizer.period_normalizer import PeriodNormalizer
+from src.normalizer.unit_normalizer import UnitNormalizer
+from src.db.database import save_fact, get_db_connection
+
+EXTRACTION_SYSTEM_PROMPT = """You are a financial and macroeconomic data extraction engine.
+Extract specific, grounded numerical or policy facts from the provided text into a JSON array of facts.
+
+Guidelines:
+1. "entity": Free-text entity name (e.g. "Reserve Bank of India", "Government of India", "Central Government", "India").
+2. "attribute": Specific metric or fact name (e.g. "Real GDP Growth", "Headline CPI Inflation", "Gross Fiscal Deficit").
+3. "value": Number (e.g. 6.5, 330.9) or short categorical string (e.g. "accommodative").
+4. "unit": Unit of measurement (e.g. "%", "% of GDP", "Million Tonnes", "INR Crore") or null.
+5. "period_raw": VERBATIM period string as written in the text (e.g. "2024-25", "FY2024/25", "Q2"). Do NOT normalize here.
+6. "assertion_type":
+   - "stated": For reported outcomes, actuals, historical data, or Revised Estimates (RE) (e.g. FY2024-25 actuals/RE).
+   - "projection": ONLY for future forecasts, targets, or Budget Estimates (BE) (e.g. FY2025-26 projections, 2047 targets).
+   - "opinion": Qualitative views or interpretations.
+   - "hedge": Explicitly uncertain statements with qualifiers like "likely", "subject to risks".
+7. "source_quote": Exact verbatim quote under 300 characters from the text that proves the fact.
+If no clear facts are found in this chunk, return an empty list.
+
+Output schema:
+{
+  "facts": [
+    {
+      "entity": "string",
+      "attribute": "string",
+      "value": 0.0,
+      "unit": "string or null",
+      "period_raw": "string",
+      "assertion_type": "stated | projection | opinion | hedge",
+      "source_quote": "string"
+    }
+  ]
+}
+Return valid JSON only.
+"""
+
+class FactExtractor:
+    def __init__(self, model: str = LLM_MODEL):
+        self.client = OpenAI(
+            api_key=OPENROUTER_API_KEY,
+            base_url=LLM_BASE_URL,
+            timeout=30.0
+        )
+        self.model = model
+
+    def extract_chunk(self, chunk: Dict[str, Any], max_retries: int = 3) -> List[Dict[str, Any]]:
+        text = chunk["text"]
+        prompt = f"Text to extract from:\n---\n{text}\n---\nExtract facts in JSON."
+
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.0
+                )
+                raw_json = response.choices[0].message.content
+                data = json.loads(raw_json)
+                raw_facts = data.get("facts", [])
+                
+                # Process and validate extracted facts
+                processed_facts = []
+                for rf in raw_facts:
+                    fact = self._process_raw_fact(rf, chunk)
+                    if fact:
+                        processed_facts.append(fact)
+                return processed_facts
+
+            except Exception as e:
+                wait_time = (2 ** attempt) + 1
+                print(f"[Attempt {attempt + 1}/{max_retries}] Error extracting chunk {chunk['chunk_id']}: {e}. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+
+        print(f"Failed to extract chunk {chunk['chunk_id']} after {max_retries} retries.")
+        return []
+
+    def _process_raw_fact(self, rf: Dict[str, Any], chunk: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        quote = rf.get("source_quote", "").strip()
+        chunk_text = chunk["text"]
+
+        # Rule-based extraction confidence calculation (Decision 11)
+        score = 0.0
+        
+        # Signal 1: Verbatim grounding check (+0.5)
+        # Check case-insensitive or whitespace-normalized substring
+        clean_quote = " ".join(quote.split())
+        clean_chunk = " ".join(chunk_text.split())
+        grounded = clean_quote in clean_chunk if clean_quote else False
+        if grounded:
+            score += 0.5
+        else:
+            # Try relaxed search (at least 75% of quote words in chunk)
+            quote_words = clean_quote.split()
+            if len(quote_words) > 3 and sum(1 for w in quote_words if w in clean_chunk) / len(quote_words) >= 0.85:
+                score += 0.3
+
+        # Signal 2: Clean numeric or clear value (+0.3)
+        val = rf.get("value")
+        val_clean = False
+        if isinstance(val, (int, float)):
+            val_clean = True
+            score += 0.3
+        elif isinstance(val, str) and val.strip():
+            try:
+                float(val.replace(",", "").replace("%", "").strip())
+                val_clean = True
+                score += 0.3
+            except ValueError:
+                # String value (like "accommodative")
+                score += 0.2
+
+        # Signal 3: Period raw text present (+0.2)
+        raw_period = rf.get("period_raw") or rf.get("period") or ""
+        if isinstance(raw_period, dict):
+            raw_period = raw_period.get("raw_text", "")
+        raw_period = str(raw_period).strip()
+        if raw_period:
+            score += 0.2
+
+        # Enforce threshold: must have score >= CONFIDENCE_THRESHOLD (0.5)
+        if score < CONFIDENCE_THRESHOLD:
+            return None
+
+        # Deterministic normalization
+        norm_period = PeriodNormalizer.normalize(raw_period)
+
+        assertion_type = rf.get("assertion_type", "stated").lower()
+        if assertion_type not in ["stated", "projection", "opinion", "hedge"]:
+            assertion_type = "stated"
+
+        return {
+            "id": str(uuid.uuid4()),
+            "entity": rf.get("entity", "Unknown").strip(),
+            "attribute": rf.get("attribute", "Unknown").strip(),
+            "value": val,
+            "unit": rf.get("unit"),
+            "period": norm_period,
+            "assertion_type": assertion_type,
+            "source_doc": chunk.get("doc_slug", ""),
+            "source_page": chunk.get("page", 1),
+            "source_quote": quote,
+            "chunk_id": chunk["chunk_id"],
+            "extraction_confidence": round(score, 2)
+        }
+
+    def process_chunks_to_db(self, chunks: List[Dict[str, Any]], extraction_run_id: str) -> List[Dict[str, Any]]:
+        """Extracts facts and commits each to SQLite immediately (resumable)."""
+        all_extracted = []
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check existing chunks in this run
+        cursor.execute("SELECT DISTINCT chunk_id FROM facts WHERE extraction_run_id = ?", (extraction_run_id,))
+        done_chunks = set(row[0] for row in cursor.fetchall())
+        conn.close()
+
+        total = len(chunks)
+        for i, chunk in enumerate(chunks):
+            cid = chunk["chunk_id"]
+            if cid in done_chunks:
+                continue
+
+            print(f"[{i+1}/{total}] Extracting facts from {cid} ({chunk['chunk_type']})...")
+            facts = self.extract_chunk(chunk)
+            for f in facts:
+                save_fact(f, extraction_run_id)
+                all_extracted.append(f)
+            time.sleep(0.2) # modest rate-limit cushion
+
+        return all_extracted

@@ -1,0 +1,89 @@
+{
+  "synonym_pairs": [
+    {
+      "entity_a": "Government of India",
+      "entity_b": "GoI",
+      "expected_match": true,
+      "min_confidence": 0.8
+    },
+    {
+      "entity_a": "Government of India",
+      "entity_b": "the central government",
+      "expected_match": true,
+      "min_confidence": 0.85
+    },
+    {
+      "entity_a": "Reserve Bank of India",
+      "entity_b": "RBI",
+      "expected_match": true,
+      "min_confidence": 0.8
+    },
+    {
+      "entity_a": "Reserve Bank of India",
+      "entity_b": "the central bank",
+      "expected_match": true,
+      "min_confidence": 0.85
+    },
+    {
+      "entity_a": "International Monetary Fund",
+      "entity_b": "IMF",
+      "expected_match": true,
+      "min_confidence": 0.8
+    },
+    {
+      "entity_a": "International Monetary Fund",
+      "entity_b": "the Fund",
+      "expected_match": true,
+      "min_confidence": 0.75
+    },
+    {
+      "entity_a": "National Statistical Office",
+      "entity_b": "NSO",
+      "expected_match": true,
+      "min_confidence": 0.8
+    },
+    {
+      "entity_a": "Ministry of Statistics & Programme Implementation",
+      "entity_b": "MoSPI",
+      "expected_match": true,
+      "min_confidence": 0.8
+    }
+  ],
+  "negative_pairs": [
+    {
+      "entity_a": "Reserve Bank of India",
+      "entity_b": "Government of India",
+      "expected_match": false,
+      "max_confidence": 0.65
+    },
+    {
+      "entity_a": "Central Government",
+      "entity_b": "State Governments",
+      "expected_match": false,
+      "max_confidence": 0.65
+    },
+    {
+      "entity_a": "International Monetary Fund",
+      "entity_b": "Reserve Bank of India",
+      "expected_match": false,
+      "max_confidence": 0.65
+    }
+  ],
+  "authorities_heuristic_cases": [
+    {
+      "context": "The authorities reaffirmed their commitment to the 4 percent inflation target and kept the policy repo rate unchanged.",
+      "expected_resolution": "RBI",
+      "expected_confidence": 0.7
+    },
+    {
+      "context": "The authorities reiterated their commitment to reach a central government fiscal deficit of 4.4 percent of GDP by 2025-26.",
+      "expected_resolution": "GoI",
+      "expected_confidence": 0.7
+    },
+    {
+      "context": "The authorities welcomed the constructive dialogue with the IMF mission during the 2025 consultation.",
+      "expected_resolution": "AMBIGUOUS",
+      "expected_confidence": 0.4
+    }
+  ]
+}
