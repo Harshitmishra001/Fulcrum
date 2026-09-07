@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fulcrum — Fact Knowledge & Verification Layer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .badge-corroboration { background-color: #DEF7EC; color: #03543F; border: 1px solid #31C48D; }
+    .badge-contradiction { background-color: #FDE8E8; color: #9B1C1C; border: 1px solid #F98080; }
+    .badge-reconciled { background-color: #E1EFFE; color: #1E429F; border: 1px solid #76A9FA; }
+    .badge-different_claim_type { background-color: #FEF08A; color: #713F12; border: 1px solid #EAB308; }
+    .badge-not_comparable_period { background-color: #F3F4F6; color: #374151; border: 1px solid #9CA3AF; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200 pb-6 mb-8">
+      <div>
+        <div class="flex items-center space-x-3">
+          <div class="h-10 w-10 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow">F</div>
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Fulcrum</h1>
+            <p class="text-sm text-slate-500">Autonomous Fact Discovery, Grounding, and Cross-Document Reasoner</p>
+          </div>
+        </div>
+      </div>
+      <div class="mt-4 md:mt-0 flex items-center space-x-3">
+        <a href="#upload-section" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">Upload PDF</a>
+        <button onclick="recomputeRelations()" class="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-sm font-semibold rounded-lg shadow-sm transition">Recompute Relations</button>
+      </div>
+    </div>
+
+    <!-- Metrics Bar -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Facts</p>
+        <p class="text-2xl font-bold text-slate-900 mt-1">{{ stats.total_facts }}</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Relations</p>
+        <p class="text-2xl font-bold text-slate-900 mt-1">{{ stats.total_relations }}</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-emerald-200 shadow-sm">
+        <p class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Corroborated</p>
+        <p class="text-2xl font-bold text-emerald-600 mt-1">{{ stats.corroborations }}</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-rose-200 shadow-sm">
+        <p class="text-xs font-semibold text-rose-700 uppercase tracking-wider">Contradictions</p>
+        <p class="text-2xl font-bold text-rose-600 mt-1">{{ stats.contradictions }}</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-blue-200 shadow-sm">
+        <p class="text-xs font-semibold text-blue-700 uppercase tracking-wider">Reconciled</p>
+        <p class="text-2xl font-bold text-blue-600 mt-1">{{ stats.reconciled }}</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-amber-200 shadow-sm">
+        <p class="text-xs font-semibold text-amber-700 uppercase tracking-wider">Claim Type Discrepancy</p>
+        <p class="text-2xl font-bold text-amber-600 mt-1">{{ stats.different_claim_types }}</p>
+      </div>
+    </div>
+
+    <!-- Upload & Ingestion Form -->
+    <div id="upload-section" class="bg-white rounded-xl border border-slate-200 p-6 mb-8 shadow-sm">
+      <h2 class="text-base font-bold text-slate-900 mb-2">Ingest New Document</h2>
+      <p class="text-xs text-slate-500 mb-4">Upload any PDF (corporate earnings, macro reports). The pipeline will chunk tables/prose, extract facts autonomously, and link cross-document claims.</p>
+      <form id="uploadForm" class="flex flex-col sm:flex-row items-center gap-4">
+        <input type="file" id="pdfFile" accept="application/pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" required />
+        <button type="submit" id="uploadBtn" class="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm whitespace-nowrap transition">Process & Verify PDF</button>
+      </form>
+      <div id="uploadStatus" class="hidden mt-3 text-sm"></div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="flex items-center space-x-2 mb-6 overflow-x-auto pb-2">
+      <button onclick="filterCards('all')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white">All Relations ({{ relations|length }})</button>
+      <button onclick="filterCards('corroboration')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200">Corroboration ({{ stats.corroborations }})</button>
+      <button onclick="filterCards('contradiction')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200">Contradiction ({{ stats.contradictions }})</button>
+      <button onclick="filterCards('reconciled')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200">Reconciled ({{ stats.reconciled }})</button>
+      <button onclick="filterCards('different_claim_type')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200">Stated vs Projection ({{ stats.different_claim_types }})</button>
+    </div>
+
+    <!-- Argument Cards Grid -->
+    <div class="space-y-4">
+      {% for item in relations %}
+      <div class="relation-card bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:border-slate-300 transition" data-type="{{ item.relation_type }}">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-3">
+            <span class="px-2.5 py-1 text-xs font-bold uppercase rounded-md badge-{{ item.relation_type }}">
+              {{ item.relation_type.replace('_', ' ') }}
+            </span>
+            <span class="text-xs text-slate-500 font-mono">Entity Match: {{ (item.entity_resolution_confidence * 100)|round(0) }}% confidence</span>
+          </div>
+          <span class="text-xs text-slate-400 font-medium">Metric: <strong class="text-slate-700">{{ item.fact_a.attribute }}</strong></span>
+        </div>
+
+        <p class="text-sm font-semibold text-slate-900 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+          {{ item.explanation }}
+        </p>
+
+        <!-- Two Fact Comparison Panels -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <!-- Fact A -->
+          <div class="p-4 rounded-lg bg-slate-50 border border-slate-200">
+            <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
+              <span class="font-bold uppercase tracking-wider text-slate-700">{{ item.fact_a.source_doc }} &bull; Page {{ item.fact_a.source_page }}</span>
+              <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-200 text-slate-700">{{ item.fact_a.assertion_type }}</span>
+            </div>
+            <div class="text-base font-bold text-slate-900 mb-1">
+              {{ item.fact_a.entity }} &bull; {{ item.fact_a.value }}{{ item.fact_a.unit or '' }}
+              <span class="text-xs font-normal text-slate-500">({{ item.fact_a.period_normalized or item.fact_a.period_raw }})</span>
+            </div>
+            <p class="text-xs italic text-slate-600 mt-2 bg-white p-2.5 rounded border border-slate-100">
+              &ldquo;{{ item.fact_a.source_quote }}&rdquo;
+            </p>
+          </div>
+
+          <!-- Fact B -->
+          <div class="p-4 rounded-lg bg-slate-50 border border-slate-200">
+            <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
+              <span class="font-bold uppercase tracking-wider text-slate-700">{{ item.fact_b.source_doc }} &bull; Page {{ item.fact_b.source_page }}</span>
+              <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-200 text-slate-700">{{ item.fact_b.assertion_type }}</span>
+            </div>
+            <div class="text-base font-bold text-slate-900 mb-1">
+              {{ item.fact_b.entity }} &bull; {{ item.fact_b.value }}{{ item.fact_b.unit or '' }}
+              <span class="text-xs font-normal text-slate-500">({{ item.fact_b.period_normalized or item.fact_b.period_raw }})</span>
+            </div>
+            <p class="text-xs italic text-slate-600 mt-2 bg-white p-2.5 rounded border border-slate-100">
+              &ldquo;{{ item.fact_b.source_quote }}&rdquo;
+            </p>
+          </div>
+
+        </div>
+
+        {% if item.evidence_quote and item.relation_type in ['reconciled', 'candidate_reconciliation'] %}
+        <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900">
+          <strong class="font-bold">Reconciling Evidence in Document:</strong> &ldquo;{{ item.evidence_quote }}&rdquo;
+        </div>
+        {% endif %}
+
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+
+  <script>
+    function filterCards(type) {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'text-white');
+        btn.classList.add('bg-white', 'text-slate-700');
+      });
+      event.target.classList.remove('bg-white', 'text-slate-700');
+      event.target.classList.add('bg-indigo-600', 'text-white');
+
+      document.querySelectorAll('.relation-card').forEach(card => {
+        if (type === 'all' || card.getAttribute('data-type') === type) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    async function recomputeRelations() {
+      const btn = event.target;
+      btn.innerText = 'Recomputing...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/run-comparison', { method: 'POST' });
+        if (res.ok) {
+          window.location.reload();
+        }
+      } catch (err) {
+        alert('Error: ' + err);
+      } finally {
+        btn.innerText = 'Recompute Relations';
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById('pdfFile');
+      if (!fileInput.files.length) return;
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      const status = document.getElementById('uploadStatus');
+      const btn = document.getElementById('uploadBtn');
+      status.className = 'mt-3 text-sm text-indigo-600 font-medium block';
+      status.innerText = 'Uploading and processing PDF through extraction pipeline...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+          status.className = 'mt-3 text-sm text-emerald-600 font-medium block';
+          status.innerText = `Successfully processed! Extracted ${data.extracted_facts_count} facts. Refreshing...`;
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          status.className = 'mt-3 text-sm text-rose-600 font-medium block';
+          status.innerText = 'Error: ' + data.detail;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        status.className = 'mt-3 text-sm text-rose-600 font-medium block';
+        status.innerText = 'Network error: ' + err;
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
