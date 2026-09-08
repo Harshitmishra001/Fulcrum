@@ -105,5 +105,17 @@ class FactExtractorV2:
                 data = data.get("facts", []) or data.get("data", []) or [data]
                 
             return [d for d in data if isinstance(d, dict) and "value" in d]
-        except Exception:
+        except Exception as e:
+            # Log the failure to the database
+            try:
+                conn = sqlite3.connect(self.db_path)
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO extraction_failures (id, chunk_id, reason)
+                    VALUES (?, ?, ?)
+                """, (f"fail_json_{chunk['chunk_id']}", chunk["chunk_id"], f"LLM returned malformed JSON or failed parsing: {str(e)}"))
+                conn.commit()
+                conn.close()
+            except Exception as db_e:
+                print(f"Failed to log extraction failure: {db_e}")
             return []
