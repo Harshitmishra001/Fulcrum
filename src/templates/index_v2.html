@@ -324,9 +324,9 @@
       switchView('fact-detail');
       showDocument(f);
       
-      document.getElementById('detail-title').innerText = \`\${f.entity} — \${f.attribute}\`;
-      document.getElementById('detail-doc').innerHTML = \`<span class="material-symbols-outlined text-[16px]">description</span> \${docName(f)}\`;
-      document.getElementById('detail-page').innerHTML = \`<span class="material-symbols-outlined text-[16px]">find_in_page</span> Page \${pageNo(f)}\`;
+      document.getElementById('detail-title').innerText = `${f.entity} — ${f.attribute}`;
+      document.getElementById('detail-doc').innerHTML = `<span class="material-symbols-outlined text-[16px]">description</span> ${docName(f)}`;
+      document.getElementById('detail-page').innerHTML = `<span class="material-symbols-outlined text-[16px]">find_in_page</span> Page ${pageNo(f)}`;
       
       document.getElementById('detail-entity').innerText = f.entity;
       document.getElementById('detail-attribute').innerText = f.attribute;
@@ -361,7 +361,7 @@
       }
       
       const sb = document.getElementById('detail-status-box');
-      sb.className = \`p-5 rounded-xl border mb-10 flex items-start gap-3 shadow-sm \${statusClass}\`;
+      sb.className = `p-5 rounded-xl border mb-10 flex items-start gap-3 shadow-sm ${statusClass}`;
       document.getElementById('detail-status-icon').innerText = icon;
       document.getElementById('detail-status-title').innerText = title;
       document.getElementById('detail-status-desc').innerText = desc;
@@ -379,16 +379,16 @@
            if(r.relation_type==='contradiction') col='red';
            if(r.relation_type==='reconciled') col='blue';
            
-           return \`
-             <div onclick="openFactDetail('\${otherF.id}')" class="p-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 hover:border-gray-300 cursor-pointer transition-colors shadow-sm flex justify-between items-center">
+           return `
+             <div onclick="openFactDetail('${otherF.id}')" class="p-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 hover:border-gray-300 cursor-pointer transition-colors shadow-sm flex justify-between items-center">
                <div>
-                 <div class="text-[10px] font-bold font-mono uppercase tracking-wider text-\${col}-600 bg-\${col}-50 border border-\${col}-100 px-1.5 py-0.5 rounded inline-block mb-2">\${r.relation_type} WITH</div>
-                 <div class="text-sm font-semibold text-gray-900">\${docName(otherF)} • Page \${pageNo(otherF)}</div>
-                 <div class="text-xs font-mono text-gray-500 mt-1">\${otherF.value} \${otherF.unit||''} (\${otherF.period_normalized||''})</div>
+                 <div class="text-[10px] font-bold font-mono uppercase tracking-wider text-${col}-600 bg-${col}-50 border border-${col}-100 px-1.5 py-0.5 rounded inline-block mb-2">${r.relation_type} WITH</div>
+                 <div class="text-sm font-semibold text-gray-900">${docName(otherF)} • Page ${pageNo(otherF)}</div>
+                 <div class="text-xs font-mono text-gray-500 mt-1">${otherF.value} ${otherF.unit||''} (${otherF.period_normalized||''})</div>
                </div>
                <span class="material-symbols-outlined text-gray-400">chevron_right</span>
              </div>
-           \`;
+           `;
          }).join('');
       } else {
          drs.classList.add('hidden');
@@ -419,26 +419,26 @@
         if(r.relation_type==='contradiction') color='red';
         if(r.relation_type==='reconciled') color='blue';
         
-        return \`
+        return `
           <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
             <div class="bg-gray-50 px-5 py-3 border-b border-gray-200 flex justify-between items-center">
-              <span class="text-[11px] font-mono font-bold uppercase tracking-wider text-\${color}-700 bg-\${color}-100 px-2.5 py-1 rounded-md border border-\${color}-200">\${r.relation_type}</span>
+              <span class="text-[11px] font-mono font-bold uppercase tracking-wider text-${color}-700 bg-${color}-100 px-2.5 py-1 rounded-md border border-${color}-200">${r.relation_type}</span>
             </div>
-            \${r.explanation ? \`<div class="p-4 border-b border-gray-100 text-sm text-gray-600 bg-white leading-relaxed flex gap-2"><span class="material-symbols-outlined text-gray-400 text-[18px] shrink-0 mt-0.5">psychology</span> \${r.explanation}</div>\` : ''}
+            ${r.explanation ? `<div class="p-4 border-b border-gray-100 text-sm text-gray-600 bg-white leading-relaxed flex gap-2"><span class="material-symbols-outlined text-gray-400 text-[18px] shrink-0 mt-0.5">psychology</span> ${r.explanation}</div>` : ''}
             <div class="grid grid-cols-2 divide-x divide-gray-100">
-               <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('\${fa.id}')">
-                 <div class="text-xs font-mono text-gray-500 mb-2 truncate">\${docName(fa)} • P\${pageNo(fa)}</div>
-                 <div class="font-semibold text-gray-900 text-sm">\${fa.entity}</div>
-                 <div class="text-lg font-mono font-bold text-blue-600 mt-2">\${fa.value} <span class="text-xs text-gray-500 font-sans font-normal">\${fa.unit||''}</span></div>
+               <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('${fa.id}')">
+                 <div class="text-xs font-mono text-gray-500 mb-2 truncate">${docName(fa)} • P${pageNo(fa)}</div>
+                 <div class="font-semibold text-gray-900 text-sm">${fa.entity}</div>
+                 <div class="text-lg font-mono font-bold text-blue-600 mt-2">${fa.value} <span class="text-xs text-gray-500 font-sans font-normal">${fa.unit||''}</span></div>
                </div>
-               <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('\${fb.id}')">
-                 <div class="text-xs font-mono text-gray-500 mb-2 truncate">\${docName(fb)} • P\${pageNo(fb)}</div>
-                 <div class="font-semibold text-gray-900 text-sm">\${fb.entity}</div>
-                 <div class="text-lg font-mono font-bold text-blue-600 mt-2">\${fb.value} <span class="text-xs text-gray-500 font-sans font-normal">\${fb.unit||''}</span></div>
+               <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('${fb.id}')">
+                 <div class="text-xs font-mono text-gray-500 mb-2 truncate">${docName(fb)} • P${pageNo(fb)}</div>
+                 <div class="font-semibold text-gray-900 text-sm">${fb.entity}</div>
+                 <div class="text-lg font-mono font-bold text-blue-600 mt-2">${fb.value} <span class="text-xs text-gray-500 font-sans font-normal">${fb.unit||''}</span></div>
                </div>
             </div>
           </div>
-        \`;
+        `;
       }).join('');
     }
 
@@ -453,26 +453,26 @@
       const renderCaseBlock = (title, r, color) => {
          if(!r) return '';
          const fa = factsMap[r.fact_a_id]; const fb = factsMap[r.fact_b_id];
-         return \`
+         return `
           <div>
-            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-\${color}-500 shadow-sm"></span> \${title}</h2>
+            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-${color}-500 shadow-sm"></span> ${title}</h2>
             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-              \${r.explanation ? \`<div class="bg-gray-50 px-5 py-4 border-b border-gray-200 text-sm text-gray-700 leading-relaxed"><strong class="text-gray-900">System Reasoning:</strong> \${r.explanation}</div>\` : ''}
+              ${r.explanation ? `<div class="bg-gray-50 px-5 py-4 border-b border-gray-200 text-sm text-gray-700 leading-relaxed"><strong class="text-gray-900">System Reasoning:</strong> ${r.explanation}</div>` : ''}
               <div class="grid grid-cols-2 divide-x divide-gray-100">
-                 <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('\${fa.id}')">
-                   <div class="text-xs font-mono text-gray-500 mb-2 truncate">\${docName(fa)} • P\${pageNo(fa)}</div>
-                   <div class="font-semibold text-gray-900 text-sm">\${fa.entity} <span class="text-gray-400 font-normal ml-1">— \${fa.attribute}</span></div>
-                   <div class="text-xl font-mono font-bold text-\${color}-600 mt-2">\${fa.value} <span class="text-sm font-sans font-normal">\${fa.unit||''}</span></div>
+                 <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('${fa.id}')">
+                   <div class="text-xs font-mono text-gray-500 mb-2 truncate">${docName(fa)} • P${pageNo(fa)}</div>
+                   <div class="font-semibold text-gray-900 text-sm">${fa.entity} <span class="text-gray-400 font-normal ml-1">— ${fa.attribute}</span></div>
+                   <div class="text-xl font-mono font-bold text-${color}-600 mt-2">${fa.value} <span class="text-sm font-sans font-normal">${fa.unit||''}</span></div>
                  </div>
-                 <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('\${fb.id}')">
-                   <div class="text-xs font-mono text-gray-500 mb-2 truncate">\${docName(fb)} • P\${pageNo(fb)}</div>
-                   <div class="font-semibold text-gray-900 text-sm">\${fb.entity} <span class="text-gray-400 font-normal ml-1">— \${fb.attribute}</span></div>
-                   <div class="text-xl font-mono font-bold text-\${color}-600 mt-2">\${fb.value} <span class="text-sm font-sans font-normal">\${fb.unit||''}</span></div>
+                 <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('${fb.id}')">
+                   <div class="text-xs font-mono text-gray-500 mb-2 truncate">${docName(fb)} • P${pageNo(fb)}</div>
+                   <div class="font-semibold text-gray-900 text-sm">${fb.entity} <span class="text-gray-400 font-normal ml-1">— ${fb.attribute}</span></div>
+                   <div class="text-xl font-mono font-bold text-${color}-600 mt-2">${fb.value} <span class="text-sm font-sans font-normal">${fb.unit||''}</span></div>
                  </div>
               </div>
             </div>
           </div>
-         \`;
+         `;
       };
       
       html += renderCaseBlock('Case 1: Corroboration', corro, 'green');
@@ -482,7 +482,7 @@
       // Case 4 Extraction failure
       const f4 = failures.length > 0 ? failures[0] : null;
       if(f4) {
-        html += \`
+        html += `
           <div>
             <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></span> Case 4: Extraction/Reasoning Failure Handled</h2>
             <div class="border border-amber-200 rounded-xl overflow-hidden shadow-sm bg-white">
@@ -491,12 +491,12 @@
                 <span class="font-mono text-[10px] uppercase bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-bold shadow-sm">Safeguard Triggered</span>
               </div>
               <div class="p-5">
-                <div class="text-xs font-mono text-gray-500 mb-2"><span class="font-bold text-amber-600">\${f4.filename}</span> • Page \${f4.page}</div>
-                <div class="text-sm text-gray-800 leading-relaxed font-medium">\${f4.reason}</div>
+                <div class="text-xs font-mono text-gray-500 mb-2"><span class="font-bold text-amber-600">${f4.filename}</span> • Page ${f4.page}</div>
+                <div class="text-sm text-gray-800 leading-relaxed font-medium">${f4.reason}</div>
               </div>
             </div>
           </div>
-        \`;
+        `;
       }
       
       c.innerHTML = html;
@@ -517,7 +517,7 @@
     }
     
     function pageNo(f) {
-      return f.source_page || ((f.chunk_id || '').match(/p(\\d+)/) ? parseInt((f.chunk_id || '').match(/p(\\d+)/)[1]) : '?');
+      return f.source_page || ((f.chunk_id || '').match(/p(\d+)/) ? parseInt((f.chunk_id || '').match(/p(\d+)/)[1]) : '?');
     }
 
     // Search logic
@@ -528,7 +528,7 @@
         return;
       }
       switchView('facts');
-      const fd = facts.filter(f => \`\${f.entity} \${f.attribute} \${f.value}\`.toLowerCase().includes(q));
+      const fd = facts.filter(f => `${f.entity} ${f.attribute} ${f.value}`.toLowerCase().includes(q));
       renderFactsList(fd);
     }
     
@@ -552,7 +552,7 @@
         if(d.job_id) {
           document.getElementById('up-log').innerText = 'Job queued. Processing chunks...';
           const poll = setInterval(async () => {
-            const jRes = await fetch(\`/api/job/\${d.job_id}\`);
+            const jRes = await fetch(`/api/job/${d.job_id}`);
             const jData = await jRes.json();
             if(jData.status === 'completed' || d.message) {
               clearInterval(poll);
