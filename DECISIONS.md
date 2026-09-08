@@ -23,8 +23,8 @@
 13. extraction_run_id Scoped Per-Document
 14. is_active Flag for Dedup
 15. chunk_id Encodes Page Number
-16. Numeric Tolerance for Value Matching
-17. assertion_type Blocks Comparison
+16. [SUPERSEDED by 46] Numeric Tolerance for Value Matching
+17. [SUPERSEDED by 57] assertion_type Blocks Comparison
 18. Entity Resolution - Embedding Similarity and Thresholds
 19. The Authorities Heuristic - 3-Sentence Window
 20. Reconciliation - Retrieve then Classify, Never Generate
@@ -42,7 +42,7 @@
 32. API Key and Pre-Cached Results for Submission
 33. No Force-Directed Graph Visualization
 34. Fiscal Year Normalization - Lookup Table, Not Parser
-35. Unit Normalization - Small Fixed Table
+35. [SUPERSEDED by 43] Unit Normalization - Small Fixed Table
 36. Model Selection - GPT-4o-mini via OpenRouter (Budget-Constrained)
 37. Anchor Metrics Confirmed for the Four Required Cases (Step 0)
 38. Hybrid Development Strategy — Assistant-Curated Ground Truth and Pre-Cached Database
@@ -58,6 +58,15 @@
 48. First-Class Document Chunk Storage in SQLite (chunks table)
 49. Contextual Candidate Loop & Multi-Candidate Reconciliation Classifier
 50. Strict Zero-Mock Invariant & Purge of Synthetic Records
+51. Shortcut and Hardcode Auditing
+52. Domain-Neutral Extraction Prompt
+53. [SUPERSEDED by 57] Softened Rejection Guards
+54. [SUPERSEDED by 57] Blocking Index Pre-computation (O(N·K) Optimization)
+55. Quarantining Malformed Table Structures (Case 4 Handling)
+56. Explicit Semantic Polarity Normalization
+57. Two-Stage Comparison: Candidate Key and Compatibility Guards
+58. Two-Tier Identity Fingerprinting & Content-Addressed Extraction Cache
+59. Checked-In Evaluation Oracle (required_cases.json)
 
 ---
 
@@ -241,7 +250,7 @@
 
 ---
 
-## 16. Numeric Tolerance for Value Matching
+## 16. [SUPERSEDED by Decision 46] Numeric Tolerance for Value Matching
 
 **What we decided:** Percentage and rate values (unit ends in percent or bps): match if abs(a - b) is at or below 0.1. Large absolute values (crore, billion): match if relative difference is at or below 0.01 (within 1 percent). Strings, codes, and ratios without a unit: strict equality only.
 
@@ -253,7 +262,7 @@
 
 ---
 
-## 17. assertion_type Blocks Comparison
+## 17. [SUPERSEDED by Decision 57] assertion_type Blocks Comparison
 
 **What we decided:** If two facts have different assertion_type (one is stated, the other is projection), they are NOT classified as corroboration or contradiction regardless of whether their values match. Label: "different claim type."
 
@@ -469,7 +478,7 @@
 
 ---
 
-## 35. Unit Normalization - Small Fixed Table
+## 35. [SUPERSEDED by Decision 43] Unit Normalization - Small Fixed Table
 
 **What we decided:** Build a small fixed conversion table for the units that appear in these specific documents: Rupee Crore, Rupee Lakh, and USD billion converted to one canonical unit for comparison purposes, keeping the original for display.
 
@@ -677,6 +686,15 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 ---
 
 ## 50. Strict Zero-Mock Invariant & Purge of Synthetic Records
+51. Shortcut and Hardcode Auditing
+52. Domain-Neutral Extraction Prompt
+53. [SUPERSEDED by 57] Softened Rejection Guards
+54. [SUPERSEDED by 57] Blocking Index Pre-computation (O(N·K) Optimization)
+55. Quarantining Malformed Table Structures (Case 4 Handling)
+56. Explicit Semantic Polarity Normalization
+57. Two-Stage Comparison: Candidate Key and Compatibility Guards
+58. Two-Tier Identity Fingerprinting & Content-Addressed Extraction Cache
+59. Checked-In Evaluation Oracle (required_cases.json)
 
 **What we decided:** Enforce an uncompromising zero-mock invariant across the entire knowledge layer. All facts in `fulcrum.db` must originate from genuine PDF chunk parsing, possess a verbatim groundable quote, and link to a valid chunk ID.
 
@@ -753,10 +771,40 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 **What we decided:** Rewrote the LLM extraction instructions to replace all macro-economic examples (RBI, GoI, GDP) with generic corporate/institutional terms. Added XML delimiters as prompt injection defense.
 **Why we accepted it:** Over-indexing on the training dataset led to poor generalization on corporate holdouts (Delhivery) and exposed the prompt to adversarial injection.
 
-## 53. Softened Rejection Guards
+## 53. [SUPERSEDED by Decision 57] Softened Rejection Guards
 **What we decided:** Engine no longer strictly rejects facts with different assertion types (e.g. stated vs projection) or minor dimension variations (e.g. `/gdp` ratios). It evaluates the value conflict and explicitly logs the type difference in the explanation.
 **Why we accepted it:** Strict upstream rejection silenced genuine contradictions. Comparing a stated value against a projection often reveals critical variance that users need to see.
 
 ## 54. Blocking Index Pre-computation (O(NÂ·K) Optimization)
 **What we decided:** Comparison engine partitions facts into logical blocks using (dimension, period) tuples before running candidate comparisons, and pre-caches all SQLite chunks into memory.
 **Why we accepted it:** The original nested loop produced O(N^2) evaluation runs and N+1 SQLite thrashing, crashing on large documents. Grouping by dimension bounds the search space sub-linearly and eliminates I/O bottlenecks.
+
+## 55. Quarantining Malformed Table Structures (Case 4 Handling)
+**What we decided:** Explicitly abort extraction on table chunks where cell/header grid alignment cannot be verified (specifically pages 91 and 92 of the RBI report), logging the failure directly into a dedicated `extraction_failures` table.
+**What we rejected:** Allowing the LLM to guess column/row alignment on collapsed table text.
+**The tradeoff:** We lose some potential facts from appendix tables.
+**Why we accepted it:** When tables collapse, LLMs hallucinate catastrophic values (such as Gross Fiscal Deficit = 77.9%). Quarantining prevents garbage facts from corrupting downstream relations, while fulfilling the prompt requirement for handling extraction failures.
+
+## 56. Explicit Semantic Polarity Normalization
+**What we decided:** Transform raw metrics into canonical representation families with defined polarities (e.g., `Current Account Deficit` is converted to `Current Account Net Balance` with a sign inversion multiplier of -1) before performing numeric comparisons.
+**What we rejected:** Comparing raw numbers directly without polarity checks, or naively flipping values whenever the word "deficit" appears in an attribute string.
+**The tradeoff:** Requires maintaining an explicit canonical metric family mapping.
+**Why we accepted it:** Without canonical polarity modeling, comparing a -0.6% balance and a 0.6% deficit falsely triggers a contradiction despite the two figures representing exact consensus.
+
+## 57. Two-Stage Comparison: Candidate Key and Compatibility Guards
+**What we decided:** Split the comparison pipeline into an O(N) Candidate Grouping Key (`canonical_entity`, `canonical_metric_family`, `period_coverage`, `denominator`, `unit_dimension`) and subsequent pairwise Compatibility Guards (`scope`, `claim_basis`, `polarity`, `vintage`). Facts with unknown entities or unknown metrics are rejected from automatic comparison.
+**What we rejected:** Grouping all facts into a single broad `(dimension, period)` bucket, or putting `claim_basis` into the grouping key.
+**The tradeoff:** Unrecognized metrics require explicit canonical additions to be compared automatically.
+**Why we accepted it:** Broad grouping keys cause quadratic O(K^2) explosions on large corpora containing many percentage metrics. Putting `claim_basis` in the grouping key would prevent actuals and forecasts from ever meeting to be evaluated as `not_comparable_claim_basis`.
+
+## 58. Two-Tier Identity Fingerprinting & Content-Addressed Extraction Cache
+**What we decided:** Separate fact identification into an Evidence Fingerprint (document hash + precise location/cell span) and a Semantic Fingerprint (canonical entity, metric, period, unit, value, claim basis). Implement an SQLite-backed extraction cache keyed by `(document_hash, chunk_hash, prompt_hash, model_identifier)`.
+**What we rejected:** Single broad unique constraints that inadvertently suppress legitimate revisions, and live non-deterministic API calls during benchmark seeding.
+**The tradeoff:** Requires maintaining two distinct hash layers and a cache table.
+**Why we accepted it:** Ensures exact idempotency across file uploads, prevents duplicate facts from inflating relations, and guarantees reproducible release seeding without depending on live cloud API availability.
+
+## 59. Checked-In Evaluation Oracle (required_cases.json)
+**What we decided:** Codify the 4 required cases (Corroboration, Contradiction, Reconciliation, Failure) into a checked-in `required_cases.json` oracle derived strictly from verified prose and non-quarantined sources (e.g., Private Consumption Growth at 7.2% vs 7.3% for Case 2).
+**What we rejected:** Sourcing Case 2 from the same collapsed table quarantined in Case 4 (RBI page 92).
+**The tradeoff:** Requires identifying independent examples for each category across the starter corpus.
+**Why we accepted it:** Sourcing a flagship fact from a page simultaneously declared an extraction failure is a fundamental credibility flaw. A checked-in oracle provides an objective benchmark for automated grading.
