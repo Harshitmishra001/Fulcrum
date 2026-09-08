@@ -10,9 +10,9 @@ flowchart TD
     B -->|Prose & Clean Tables| D[FactExtractorV2]
     D -->|Malformed JSON| C
     D -->|Extracted Facts| E[Period Normalizer]
-    E --> F[(fulcrum.db\nfacts table)]
+    E --> F[(fulcrum.db facts table)]
     F --> G[ComparisonEngine]
-    G --> H[(fulcrum.db\nrelations table)]
+    G --> H[(fulcrum.db relations table)]
     H --> I[Dashboard UI]
     C --> I
 ```
