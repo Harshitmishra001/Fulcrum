@@ -108,34 +108,16 @@ def get_failures():
     failures = []
     try:
         cur.execute("""
-            SELECT f.id, f.reason, c.page, d.filename 
+            SELECT f.id, f.reason, c.page, c.doc_slug as filename 
             FROM extraction_failures f
-            JOIN chunks c ON f.chunk_id = c.id
-            JOIN documents d ON c.document_id = d.id
+            JOIN chunks c ON f.chunk_id = c.chunk_id
             ORDER BY f.created_at DESC LIMIT 50
         """)
         failures = [dict(r) for r in cur.fetchall()]
-    except Exception:
+    except Exception as e:
+        print(f"Error fetching failures: {e}")
         pass
     
-    if not failures:
-        failures = [
-            {
-                "filename": "rbi_annual_report_2024.pdf",
-                "page": 91,
-                "reason": "Malformed table row/column alignment detected in Appendix Table 1. Aborted to prevent hallucinated Gross Fiscal Deficit = 77.9%."
-            },
-            {
-                "filename": "rbi_annual_report_2024.pdf",
-                "page": 92,
-                "reason": "Collapsed column grid on Page 92. Quarantined in strict adherence to Zero-Mock Grounding rule."
-            },
-            {
-                "filename": "economic_survey_2024.pdf",
-                "page": 13,
-                "reason": "Multi-tier header hierarchy collapse. Triggered raw_table_fallback quarantine."
-            }
-        ]
     conn.close()
     return {"failures": failures}
 

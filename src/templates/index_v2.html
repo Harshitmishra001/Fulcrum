@@ -750,8 +750,13 @@
                 badge.innerText = 'Completed';
                 bar.style.width = '100%';
                 bar.classList.remove('animate-pulse');
-                log.innerText = 'Ingestion complete. Reload the page to see new facts.';
+                log.innerText = 'Ingestion complete. Updating views...';
                 btn.disabled = false; btn.classList.remove('opacity-50');
+                
+                // Auto-refresh the UI
+                await loadData();
+                switchView('facts');
+                log.innerText = 'Knowledge base updated with new facts and relations.';
               } else if(jData.status === 'failed') {
                 clearInterval(poll);
                 badge.innerText = 'Failed';
