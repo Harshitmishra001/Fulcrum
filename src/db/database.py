@@ -60,6 +60,19 @@ def init_db(db_path: Optional[str] = None):
         FOREIGN KEY (fact_b_id) REFERENCES facts(id)
     );
     """)
+
+    # Chunks table: stores complete document text units (prose, tables, footnotes)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS chunks (
+        chunk_id TEXT PRIMARY KEY,
+        doc_slug TEXT NOT NULL,
+        page INTEGER NOT NULL,
+        chunk_type TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chunks_doc_page ON chunks (doc_slug, page);")
     
     # Indexes for performance and deduplication
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_facts_active ON facts(is_active);")
@@ -191,6 +204,39 @@ def save_relation(rel_dict: Dict[str, Any]) -> str:
     conn.close()
     return rel_id
 
+def save_relations_batch(relations: List[Dict[str, Any]]) -> int:
+    """Saves multiple relations in a single atomic transaction without opening/closing connections repeatedly."""
+    if not relations:
+        return 0
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    saved_count = 0
+    for rel_dict in relations:
+        cursor.execute("""
+        SELECT id FROM relations 
+        WHERE (fact_a_id = ? AND fact_b_id = ?) 
+           OR (fact_a_id = ? AND fact_b_id = ?)
+        """, (rel_dict['fact_a_id'], rel_dict['fact_b_id'], rel_dict['fact_b_id'], rel_dict['fact_a_id']))
+        existing = cursor.fetchone()
+        rel_id = existing['id'] if existing else (rel_dict.get('id') or str(uuid.uuid4()))
+        cursor.execute("""
+        INSERT OR REPLACE INTO relations (
+            id, fact_a_id, fact_b_id, relation_type, explanation, evidence_quote, entity_resolution_confidence
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            rel_id,
+            rel_dict['fact_a_id'],
+            rel_dict['fact_b_id'],
+            rel_dict['relation_type'],
+            rel_dict.get('explanation', ''),
+            rel_dict.get('evidence_quote'),
+            float(rel_dict.get('entity_resolution_confidence', 1.0))
+        ))
+        saved_count += 1
+    conn.commit()
+    conn.close()
+    return saved_count
+
 def get_all_relations() -> List[Dict[str, Any]]:
     """Retrieves all relations."""
     conn = get_db_connection()
@@ -199,3 +245,48 @@ def get_all_relations() -> List[Dict[str, Any]]:
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return rows
+
+def save_chunks_batch(chunks: List[Dict[str, Any]], db_path: Optional[str] = None) -> int:
+    """Saves parsed document chunks into SQLite."""
+    if not chunks:
+        return 0
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    saved = 0
+    for c in chunks:
+        cursor.execute("""
+        INSERT OR REPLACE INTO chunks (chunk_id, doc_slug, page, chunk_type, text)
+        VALUES (?, ?, ?, ?, ?)
+        """, (
+            c["chunk_id"],
+            c.get("doc_slug", "unknown"),
+            c.get("page", 1),
+            c.get("chunk_type", "prose"),
+            c.get("text", "")
+        ))
+        saved += 1
+    conn.commit()
+    conn.close()
+    return saved
+
+def get_chunk_text(chunk_id: str, db_path: Optional[str] = None) -> Optional[str]:
+    """Retrieves full text of a specific chunk by ID."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT text FROM chunks WHERE chunk_id = ?", (chunk_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row["text"] if row else None
+
+def get_chunks_by_page(doc_slug: str, page: int, window: int = 1, db_path: Optional[str] = None) -> List[str]:
+    """Retrieves all chunk texts for a document within +/- window pages."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT text FROM chunks 
+    WHERE doc_slug = ? AND page BETWEEN ? AND ?
+    ORDER BY page, chunk_id
+    """, (doc_slug, page - window, page + window))
+    rows = cursor.fetchall()
+    conn.close()
+    return [r["text"] for r in rows]

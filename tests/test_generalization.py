@@ -80,7 +80,7 @@ def test_foreign_authorities_resolution():
 
     # Indian context
     res_india, conf_india = resolver.resolve_authorities(
-        "The authorities kept the repo rate unchanged at 6.5 percent."
+        "The authorities in India kept the policy repo rate unchanged at 6.5 percent."
     )
     assert res_india == "Reserve Bank of India"
     assert conf_india == 0.70

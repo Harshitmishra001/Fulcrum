@@ -19,7 +19,7 @@ Every case in Fulcrum is grounded in verified document text, recorded in [`FIGUR
 
 | Case Type | Source Documents | Metric & Period | Findings & System Reasoning |
 | :--- | :--- | :--- | :--- |
-| **1. Corroboration** | **RBI** (App Table 1, p. 91)<br>**IMF** (para 4, p. 10) | **Real GDP Growth** (FY2024-25) | Both independently state **6.5%**. System links claims, matches within 0.1pp tolerance, and marks verified agreement with verbatim quotes. |
+| **1. Corroboration** | **RBI** (App Table 1, p. 91)<br>**IMF** (para 4, p. 10) | **Real GDP Growth** (FY2024-25) | Both independently state **6.5%**. System links claims, matches within 0.05 (5 bps) tolerance, and marks verified agreement with verbatim quotes. |
 | **1. Corroboration** | **RBI** (App Table 1, p. 91)<br>**IMF** (para 5, p. 10) | **Headline CPI Inflation** (FY2024-25) | Both independently report **4.6%** average inflation for the fiscal year. |
 | **2. Contradiction** | **RBI** (App Table 1, p. 92)<br>**IMF** (para 10, p. 12) | **Current Account Deficit** (FY2024-25) | **RBI reports 1.3% of GDP** deficit, while **IMF staff reports 0.6% of GDP**. System flags genuine empirical divergence between central bank data and IMF staff projections. |
 | **3. Reconciliation via Context** | **Economic Survey** (p. 14)<br>**RBI Report** (p. 8, 91) | **Real GDP Growth** (FY2024-25) | Economic Survey reports **6.4%** as per *First Advance Estimates*; RBI reports **6.5%** as per *Second Advance Estimates*. The document text itself reconciles the revision vintage. |
@@ -30,7 +30,7 @@ Every case in Fulcrum is grounded in verified document text, recorded in [`FIGUR
 
 ## 🚀 Quickstart (Inspect Pre-Cached Results)
 
-The repository includes a pre-populated SQLite database ([`fulcrum.db`](fulcrum.db)) containing **275 active facts and 159 relations** extracted from all three starter macro datasets (RBI, IMF, and Economic Survey, including genuine Case 3 reconciled relations). **You do not need an API key to run or evaluate the UI.**
+The repository includes a pre-populated SQLite database ([`fulcrum.db`](fulcrum.db)) containing **275 active facts and 125 relations** extracted from all three starter macro datasets (RBI, IMF, and Economic Survey, including genuine Case 3 reconciled relations). **You do not need an API key to run or evaluate the UI.**
 
 ### 1. Install Dependencies
 ```bash
@@ -143,18 +143,19 @@ Fulcrum/
 │   │   └── pdf_chunker.py         # Structural PDF chunker with table validation
 │   └── templates/
 │       └── index.html             # Interactive Argument Cards dashboard
-├── tests/                         # Comprehensive isolated automated test suite (24 tests)
+├── tests/                         # Comprehensive isolated automated test suite (29 tests)
 │   ├── conftest.py                # Isolated SQLite database fixture
 │   ├── test_upload_security.py    # Path traversal, magic bytes, corrupt PDF rejection
 │   ├── test_upload_lifecycle.py   # Sync threadpool, clean 400s, stale run deactivation
 │   ├── test_generalization.py     # Bounded vector cache, corporate metrics, headers
 │   ├── test_phase3_integrity.py   # Verbatim grounding, multi-fact context retrieval
-│   └── test_auditor2_remediation.py # 10 automated tests verifying 2nd bar-raiser audit fixes
+│   ├── test_auditor2_remediation.py # 10 automated tests verifying 2nd bar-raiser audit fixes
+│   └── test_auditor3_remediation.py # 5 automated tests verifying 3rd bar-raiser audit fixes
 ├── data/
 │   ├── golden_set_rbi.json        # 30 hand-annotated ground truth facts for scoring
 │   └── alias_eval_pairs.json      # 15 entity alias evaluation test pairs
 ├── starter-datasets/              # Starter PDFs (India Macro & Delhivery holdout)
-├── DECISIONS.md                   # Complete architectural decision log (45 decisions)
+├── DECISIONS.md                   # Complete architectural decision log (50 decisions)
 ├── FIGURES.md                     # Step 0 verified macroeconomic ground truth matrix
 ├── CRITICS.md                     # Ground-up adversarial audit reports & resolutions
 ├── requirements.txt               # Dependencies manifest
@@ -166,7 +167,7 @@ Fulcrum/
 ## 🧪 Running Automated Tests
 
 ```bash
-# Run the complete isolated test suite (24 tests covering security, concurrency, generalization, and grounding)
+# Run the complete isolated test suite (29 tests covering security, concurrency, generalization, and grounding)
 python -m pytest tests/ -v
 
 # Run golden set evaluation against RBI hand-annotated benchmark

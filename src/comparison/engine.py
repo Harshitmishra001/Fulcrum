@@ -9,7 +9,10 @@ from src.config import (
 )
 from src.comparison.entity_resolver import EntityResolver
 from src.normalizer.unit_normalizer import UnitNormalizer
-from src.db.database import get_active_facts, save_relation, get_db_connection
+from src.db.database import (
+    get_active_facts, save_relation, save_relations_batch, get_db_connection,
+    get_chunk_text, get_chunks_by_page
+)
 
 RECONCILIATION_SYSTEM_PROMPT = """You are a strict financial reconciliation auditor.
 You will be given two conflicting facts from economic reports and one candidate sentence from the text.
@@ -23,7 +26,7 @@ Output MUST be a JSON object:
 Do NOT generate a new explanation. Only classify the candidate sentence.
 """
 
-MAX_EMB_CACHE_SIZE = 4096
+MAX_EMB_CACHE_SIZE = 32768
 
 class ComparisonEngine:
     def __init__(self, model: str = LLM_MODEL):
@@ -51,10 +54,16 @@ class ComparisonEngine:
         if s1.lower().strip() == s2.lower().strip():
             return 1.0
         v1 = self.emb_cache.get(s1)
+        if v1 is None:
+            v1 = self.resolver.model.encode([s1], normalize_embeddings=True)[0]
+            if len(self.emb_cache) < MAX_EMB_CACHE_SIZE:
+                self.emb_cache[s1] = v1
         v2 = self.emb_cache.get(s2)
-        if v1 is not None and v2 is not None:
-            return float(np.dot(v1, v2))
-        return self.resolver.compute_similarity(s1, s2)
+        if v2 is None:
+            v2 = self.resolver.model.encode([s2], normalize_embeddings=True)[0]
+            if len(self.emb_cache) < MAX_EMB_CACHE_SIZE:
+                self.emb_cache[s2] = v2
+        return float(np.dot(v1, v2))
 
     def run_comparison(self, doc_filter: Optional[str] = None) -> List[Dict[str, Any]]:
         facts = get_active_facts(doc_filter)
@@ -96,19 +105,28 @@ class ComparisonEngine:
                 # 3. Classify relation
                 rel = self._classify_pair(fact_a, fact_b, entity_conf)
                 if rel:
-                    save_relation(rel)
                     relations.append(rel)
                     print(f"Found relation: [{rel['relation_type'].upper()}] between p.{fact_a['source_page']} and p.{fact_b['source_page']} ({fact_a['attribute']})")
 
+        # Atomic batch insert: save all discovered relations in one single SQLite transaction
+        if relations:
+            save_relations_batch(relations)
+
         return relations
+
+    SECTOR_QUALIFIERS = {
+        "agriculture", "allied", "industry", "services", "manufacturing",
+        "mining", "construction", "rural", "urban", "food", "fuel", "core",
+        "b2c", "pbf"
+    }
 
     def _attributes_match(self, attr_a: str, attr_b: str) -> bool:
         """
-        Generalized attribute matching (Critic 3.1):
-        1. Exact string match after canonical cleanup.
-        2. Generic ratio/denominator mismatch guard (e.g. 'debt to gdp' vs 'gdp growth').
-        3. Core substantive token overlap + semantic floor.
-        4. Vector similarity threshold (>= 0.81).
+        4-stage general attribute matcher:
+        1. Exact string match after lowercase cleanup.
+        2. Ratio / denominator mismatch guard.
+        3. Sector/segment qualifier isolation guard.
+        4. Core substantive token overlap + semantic similarity floor.
         Zero hardcoded domain or document-specific metric lists.
         """
         a = attr_a.lower().strip()
@@ -140,6 +158,13 @@ class ComparisonEngine:
         tokens_a = set(re.findall(r"\b[a-z]{3,}\b", a)) - stopwords
         tokens_b = set(re.findall(r"\b[a-z]{3,}\b", b)) - stopwords
 
+        # Sector / segment qualifier guard: prevent aggregate from matching sub-sector
+        # (e.g. 'Real GVA Growth' vs 'GVA Growth in Agriculture')
+        qualifiers_a = tokens_a.intersection(self.SECTOR_QUALIFIERS)
+        qualifiers_b = tokens_b.intersection(self.SECTOR_QUALIFIERS)
+        if qualifiers_a != qualifiers_b:
+            return False
+
         sim = self._fast_similarity(attr_a, attr_b)
 
         # High confidence semantic similarity
@@ -149,9 +174,10 @@ class ComparisonEngine:
         # If they share substantive core tokens and have moderate semantic similarity
         if tokens_a and tokens_b:
             overlap = tokens_a.intersection(tokens_b)
-            jaccard = len(overlap) / len(tokens_a.union(tokens_b))
-            # 1. Broad overlap (>=50% Jaccard or 2+ tokens) with sim >= 0.65
-            if (len(overlap) >= 2 or jaccard >= 0.5) and sim >= 0.65:
+            union = tokens_a.union(tokens_b)
+            jaccard = len(overlap) / len(union) if union else 0.0
+            # 1. Broad overlap (>=50% Jaccard) with semantic floor >= 0.65
+            if jaccard >= 0.5 and sim >= 0.65:
                 return True
             # 2. Key substantive head noun overlap (e.g. 'deficit', 'gdp', 'inflation') with sim >= 0.72
             if len(overlap) >= 1 and sim >= 0.72:
@@ -261,18 +287,48 @@ class ComparisonEngine:
         return None
 
     def _attempt_reconciliation(self, fact_a: Dict[str, Any], fact_b: Dict[str, Any]) -> Tuple[bool, str, Optional[str]]:
+        # General reporting and accounting variance cues across corporate/macro documents
         cue_pattern = re.compile(
-            r"(advance estimate|revised estimate|provisional|definition|re-estimate|methodology|base year|authorities)",
+            r"\b(advance|preliminary|revised|revision|provisional|restated|restatement|definition|methodology|reclassified|constant currency|nominal|real terms)\b",
             re.IGNORECASE
         )
         candidates = []
+
+        def extract_matching_sentences(text_block: str):
+            if not text_block:
+                return
+            # Split text block into candidate sentences, also handling newline and footnote boundaries
+            sentences = re.split(r'(?<=[.!?])\s+|\s+(?=\d+\s+[A-Z])|\n+', text_block)
+            for s in sentences:
+                s_clean = s.strip()
+                if len(s_clean) >= 20 and cue_pattern.search(s_clean) and s_clean not in candidates:
+                    candidates.append(s_clean)
+
+        # 1. Check full text of the source chunks where each fact originated
+        for f in [fact_a, fact_b]:
+            chunk_id = f.get("chunk_id")
+            if chunk_id:
+                chunk_text = get_chunk_text(chunk_id)
+                if chunk_text:
+                    extract_matching_sentences(chunk_text)
+
+        # 2. Check direct fact quotes
         for f in [fact_a, fact_b]:
             q = f.get("source_quote", "")
-            if q and cue_pattern.search(q):
+            if q and cue_pattern.search(q) and q not in candidates:
                 candidates.append(q)
 
-        # Multi-fact neighborhood context retrieval (Critic 2.1):
-        # If immediate quotes lack reconciliation context, scan neighboring facts within +-2 pages of the same document
+        # 3. Scan neighboring chunks on adjacent pages (+-1 page)
+        if not candidates:
+            for f in [fact_a, fact_b]:
+                doc = f.get("source_doc")
+                page = f.get("source_page", 1)
+                if doc:
+                    neighbor_texts = get_chunks_by_page(doc, page, window=1)
+                    for nt in neighbor_texts:
+                        extract_matching_sentences(nt)
+
+        # 4. Scan neighboring fact quotes
         if not candidates:
             for f in [fact_a, fact_b]:
                 doc = f.get("source_doc")
@@ -281,40 +337,48 @@ class ComparisonEngine:
                     neighbors = get_active_facts(doc)
                     for nf in neighbors:
                         if abs(nf.get("source_page", 1) - page) <= 2:
-                            nq = nf.get("source_quote", "")
-                            if nq and cue_pattern.search(nq) and nq not in candidates:
-                                candidates.append(nq)
+                            extract_matching_sentences(nf.get("source_quote", ""))
 
         if not candidates:
             return False, "NO", None
 
-        candidate = candidates[0]
-
-        # 1. Attempt LLM classification if client and key are available
-        try:
-            prompt = f"""Fact A: {fact_a['attribute']} = {fact_a['value']} ({fact_a.get('source_quote', '')})
+        for candidate in candidates[:5]:
+            # 1. Attempt LLM classification if client is available
+            if self.client:
+                try:
+                    prompt = f"""Fact A: {fact_a['attribute']} = {fact_a['value']} ({fact_a.get('source_quote', '')})
 Fact B: {fact_b['attribute']} = {fact_b['value']} ({fact_b.get('source_quote', '')})
 Candidate Explanation Sentence: "{candidate}"
 
 Classify if this sentence explains the difference."""
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": RECONCILIATION_SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.0
-            )
-            data = json.loads(response.choices[0].message.content)
-            verdict = data.get("verdict", "NO").upper()
-            if verdict in ["YES", "PARTIAL"]:
-                return True, verdict, candidate
-        except Exception:
-            # Deterministic domain rule fallback for zero-key evaluation or network offline
-            cand_lower = candidate.lower()
-            if any(term in cand_lower for term in ["advance estimate", "authorities' definition", "imf definition", "definition", "revised estimate"]):
-                return True, "YES", candidate
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": RECONCILIATION_SYSTEM_PROMPT},
+                            {"role": "user", "content": prompt}
+                        ],
+                        response_format={"type": "json_object"},
+                        temperature=0.0
+                    )
+                    data = json.loads(response.choices[0].message.content)
+                    verdict = data.get("verdict", "NO").upper()
+                    if verdict in ["YES", "PARTIAL"]:
+                        return True, verdict, candidate
+                except Exception:
+                    pass
+
+            # 2. Deterministic fallback for offline/zero-key evaluation:
+            # Checks whether candidate contains general accounting/revision variance indicators
+            # and is contextual (not merely identical to the conflicting fact quote itself)
+            if candidate != fact_a.get("source_quote", "") and candidate != fact_b.get("source_quote", ""):
+                cand_lower = candidate.lower()
+                generic_variance_markers = [
+                    "advance", "preliminary", "revised", "revision", "provisional",
+                    "restated", "restatement", "definition", "methodology", "reclassified",
+                    "constant currency", "nominal", "real terms"
+                ]
+                if any(term in cand_lower for term in generic_variance_markers):
+                    return True, "YES", candidate
 
         return False, "NO", None

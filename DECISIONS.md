@@ -53,6 +53,11 @@
 43. Multi-Dimensional Unit Normalization and Scale Multipliers
 44. SQLite WAL Mode, Busy Timeout, and Relational Deduplication
 45. Complete Three-Document Triangulation (Full Economic Survey Ingestion)
+46. Calibrated 0.05 Percentage Tolerance (Elimination of the Tolerance Paradox)
+47. Sector Qualifier Isolation for Economic Aggregates (Preventing Sub-Sector Collisions)
+48. First-Class Document Chunk Storage in SQLite (chunks table)
+49. Contextual Candidate Loop & Multi-Candidate Reconciliation Classifier
+50. Strict Zero-Mock Invariant & Purge of Synthetic Records
 
 ---
 
@@ -620,6 +625,69 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 
 ---
 
+
+---
+
+## 46. Calibrated 0.05 Percentage Tolerance (Elimination of the Tolerance Paradox)
+
+**What we decided:** Calibrate `PERCENTAGE_TOLERANCE` to `0.05` (5 basis points). Strict unit matching requires common dimensionality across currencies (INR, USD, EUR, GBP, JPY) and energy units (MW).
+
+**What we rejected:** A loose tolerance of `0.1` (10 basis points).
+
+**The tradeoff:** Discrepancies between 0.05% and 0.1% are not treated as identical matches and require contextual reconciliation or are flagged as contradictions.
+
+**Why we accepted it:** Under a 0.1 tolerance, Economic Survey's 6.4% and RBI's 6.5% evaluated as $|6.4 - 6.5| = 0.1 \le 0.1$, falsely corroborating as identical numbers and completely bypassing the reconciliation engine. Because macroeconomic indicators and corporate margin revisions are universally quoted to one decimal place, a 10 bps revision is material. A 0.05 tolerance matches genuine identical values ($6.50\% \leftrightarrow 6.50\%$) and minor floating-point noise ($6.50\% \leftrightarrow 6.53\%$) while correctly routing 10 bps revisions to the reconciliation layer.
+
+---
+
+## 47. Sector Qualifier Isolation for Economic Aggregates (Preventing Sub-Sector Collisions)
+
+**What we decided:** Introduce `SECTOR_QUALIFIERS` (`agriculture`, `industry`, `services`, `manufacturing`, `mining`, `construction`, `rural`, `urban`, `food`, `fuel`, `core`, `b2c`, `pbf`) into `_attributes_match`. If the set of sectoral qualifiers in attribute A does not exactly match that of attribute B, the comparison returns `False` immediately.
+
+**What we rejected:** Pure Jaccard token overlap or uniform embedding similarity thresholds.
+
+**The tradeoff:** Attributes that mention sub-sectors in different phrasings must share the exact same sector qualifier tokens to match.
+
+**Why we accepted it:** Headline GVA ("Real Gross Value Added Growth" = 6.4%) shares high token overlap and embedding similarity with sectoral components like "Growth in Gross Value Added in Agriculture and Allied Sector" (4.6%). Without sector qualifier isolation, the headline aggregate collided with the agricultural sub-component. Enforcing qualifier set equality isolates sectoral sub-components from aggregate metrics while preserving cross-agency phrasing matches on macroeconomic aggregates (e.g. "Gross Fiscal Deficit" $\leftrightarrow$ "Central Government Fiscal Deficit").
+
+---
+
+## 48. First-Class Document Chunk Storage in SQLite (`chunks` table)
+
+**What we decided:** Create a dedicated `chunks` table in SQLite (`chunk_id`, `doc_slug`, `page`, `chunk_type`, `text`, `created_at`). Persist every parsed structural chunk during ingestion via `save_chunks_batch`.
+
+**What we rejected:** Storing only extracted facts and relying solely on the ~300-character `source_quote` for subsequent reconciliation.
+
+**The tradeoff:** Modest increase in SQLite database file size (~2MB for 300 pages of text).
+
+**Why we accepted it:** Non-numeric textual evidence—such as footnotes explaining revision vintages (e.g. Footnote 3 on RBI p.8 stating all GDP data uses the Second Advance Estimates)—does not produce standalone numeric facts during initial extraction. Without persisting the source chunks, the reconciliation engine could never inspect the broader textual context of the document. First-class chunk storage enables true retrieve-then-classify reconciliation directly from original PDF evidence.
+
+---
+
+## 49. Contextual Candidate Loop & Multi-Candidate Reconciliation Classifier
+
+**What we decided:** Retrieve candidate explanatory sentences from both facts' original source chunks, direct quotes, and adjacent page chunks ($\pm 1$ page). Evaluate up to 5 candidates in a loop with the LLM reconciliation classifier, and employ a contextual fallback for offline evaluation.
+
+**What we rejected:** Evaluating only the first candidate (`candidates[0]`) or using a fact's own quote to explain its discrepancy with another fact.
+
+**The tradeoff:** Up to 5 LLM classification calls per conflicting pair (bounded to pairs with substantive attribute overlap and differing values).
+
+**Why we accepted it:** When multiple candidates exist (e.g., Fact A's quote, Fact A's section header, and Fact B's footnote), taking only `candidates[0]` often selects Fact A's own quote, which only restates Fact A rather than explaining the difference with Fact B. Iterating over candidates ensures that explanatory footnotes from either document are evaluated.
+
+---
+
+## 50. Strict Zero-Mock Invariant & Purge of Synthetic Records
+
+**What we decided:** Enforce an uncompromising zero-mock invariant across the entire knowledge layer. All facts in `fulcrum.db` must originate from genuine PDF chunk parsing, possess a verbatim groundable quote, and link to a valid chunk ID.
+
+**What we rejected:** Inserting manual records or synthetic chunk IDs (such as `manual_grounding_case3` or `__footnote__rbi_p08_sae`) to fulfill edge-case evaluation requirements.
+
+**The tradeoff:** Any failure to extract an edge case must be solved structurally in the parser or chunk retrieval layer, requiring more architectural effort.
+
+**Why we accepted it:** Synthetic data corrupts the integrity of the knowledge layer, invalidates benchmark claims, and fails on unseen evaluator documents. A genuine fact verification system must discover, ground, and reconcile facts purely through autonomous code execution.
+
+---
+
 ## Summary Table
 
 | # | Decision | Alternative Rejected | Core Reason Accepted |
@@ -669,4 +737,10 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 | 43 | Multi-Dimensional Unit Normalization | Dimension-blind numeric matching | Prevents cross-currency errors; applies 100 Lakh = 1 Cr |
 | 44 | SQLite WAL Mode & Deduplication | Rollback journal & duplicate pairs | High concurrency without database locks; clean relations |
 | 45 | Complete Three-Document Triangulation | Partial starter dataset ingestion | Empirically grounds all 3 documents & Case 3 in DB |
+| 46 | Calibrated 0.05 Percentage Tolerance | Loose 0.1 tolerance | Prevents 10 bps revision from bypassing reconciliation |
+| 47 | Sector Qualifier Isolation | Pure token overlap | Isolates Headline GVA from Agriculture/Industry sub-sectors |
+| 48 | First-Class Chunks SQLite Table | Storing facts only | Footnotes & prose context queryable for reconciliation |
+| 49 | Multi-Candidate Reconciliation Loop | Single candidate evaluation | Evaluates all contextual explanations, not just fact A quote |
+| 50 | Zero-Mock Provenance Invariant | Synthetic/manual records | 100% of facts and relations derived from genuine execution |
+
 

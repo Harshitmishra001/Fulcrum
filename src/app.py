@@ -13,7 +13,7 @@ from src.config import BASE_DIR, DB_PATH, OPENROUTER_API_KEY
 from src.parser.pdf_chunker import PDFChunker
 from src.extractor.extractor import FactExtractor
 from src.comparison.engine import ComparisonEngine
-from src.db.database import init_db, get_active_facts, get_all_relations, save_relation, deactivate_previous_runs
+from src.db.database import init_db, get_active_facts, get_all_relations, save_relation, deactivate_previous_runs, save_chunks_batch
 
 app = FastAPI(title="Fulcrum Fact Verification Layer", version="1.0.0")
 
@@ -135,16 +135,28 @@ def upload_pdf(file: UploadFile = File(...), max_pages: Optional[str] = Form(Non
     if not str(saved_path).startswith(str(uploads_dir)):
         raise HTTPException(status_code=400, detail="Path traversal or invalid filename detected.")
 
+    # Bounded streaming to prevent disk exhaustion DoS (max 50MB)
+    MAX_UPLOAD_SIZE = 50 * 1024 * 1024 # 50 MB
+    total_bytes = 0
     with open(saved_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        while chunk := file.file.read(1024 * 1024):
+            total_bytes += len(chunk)
+            if total_bytes > MAX_UPLOAD_SIZE:
+                buffer.close()
+                if saved_path.exists():
+                    saved_path.unlink()
+                raise HTTPException(status_code=413, detail="File too large. Maximum supported upload size is 50MB.")
+            buffer.write(chunk)
 
     # Process uploaded PDF through the pipeline
-    doc_slug = safe_stem.lower()
+    # Namespace doc_slug with file_id to prevent multi-tenant document collision
+    doc_slug = f"{safe_stem.lower()}_{file_id}"
     try:
         chunker = PDFChunker(doc_slug=doc_slug, pdf_path=str(saved_path))
         # Support full document processing or user-selected page limit (Critic 4.1)
         page_limit = int(max_pages) if (max_pages and str(max_pages).strip() and str(max_pages).strip().isdigit() and int(max_pages) > 0) else None
         chunks = chunker.chunk_document(max_pages=page_limit)
+        save_chunks_batch(chunks)
     except Exception as e:
         # Clean up invalid uploaded file
         if saved_path.exists():
@@ -156,11 +168,10 @@ def upload_pdf(file: UploadFile = File(...), max_pages: Optional[str] = Form(Non
 
     extractor = FactExtractor()
     run_id = f"upload_{file_id}"
-    
-    # Soft-deactivate previous runs for this document to prevent duplicate facts & phantom corroborations
-    deactivate_previous_runs(doc_slug, run_id)
 
+    # Extract facts first; only deactivate previous runs once new facts are safely saved
     extracted_facts = extractor.process_chunks_to_db(chunks, extraction_run_id=run_id)
+    deactivate_previous_runs(doc_slug, run_id)
 
     # Re-run comparison engine to cross-reference newly extracted facts
     engine = ComparisonEngine()

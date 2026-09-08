@@ -29,7 +29,6 @@ class EntityResolver:
     KNOWN_ALIASES = {
         "goi": "Government of India",
         "government of india": "Government of India",
-        "central government": "Government of India",
         "rbi": "Reserve Bank of India",
         "reserve bank of india": "Reserve Bank of India",
         "imf": "International Monetary Fund",
@@ -65,8 +64,8 @@ class EntityResolver:
         monetary_hits = sum(1 for cue in self.MONETARY_CUES if cue in text_lower)
         fiscal_hits = sum(1 for cue in self.FISCAL_CUES if cue in text_lower)
 
-        foreign_cues = ("federal reserve", "bank of england", "ecb", "treasury", "united states", "united kingdom", "fed", "fomc")
-        indian_cues = ("india", "rbi", "rupee", "inr", "crore", "lakh", "delhi", "mumbai", "union budget", "repo rate", "repo", "mpc", "gst")
+        foreign_cues = ("federal reserve", "bank of england", "ecb", "treasury", "united states", "united kingdom", "fed", "fomc", "us", "uk", "eurozone")
+        indian_cues = ("india", "indian", "rbi", "rupee", "inr", "crore", "lakh", "delhi", "mumbai", "union budget")
         
         is_foreign = any(fc in text_lower for fc in foreign_cues)
         is_indian = any(ic in text_lower for ic in indian_cues)
