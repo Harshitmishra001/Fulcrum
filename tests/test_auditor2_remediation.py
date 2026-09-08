@@ -146,6 +146,19 @@ def test_relations_deduplication_in_db():
         "evidence_quote": "Quote 2",
         "entity_resolution_confidence": 1.0
     }
+    # Must create the facts first because PRAGMA foreign_keys = ON
+    from src.db.database import save_fact
+    save_fact({
+        "id": "f_alpha",
+        "entity": "Mock A", "attribute": "Mock Attr", "value": 1.0,
+        "period": {"raw_text": "Q1", "period_type": "unspecified", "normalized": "Q1"}
+    }, "run_dedup_test")
+    save_fact({
+        "id": "f_beta",
+        "entity": "Mock B", "attribute": "Mock Attr", "value": 1.0,
+        "period": {"raw_text": "Q1", "period_type": "unspecified", "normalized": "Q1"}
+    }, "run_dedup_test")
+
     save_relation(rel_1)
     save_relation(rel_2)
     all_rels = get_all_relations()

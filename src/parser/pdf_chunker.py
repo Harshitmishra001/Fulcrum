@@ -112,7 +112,7 @@ class PDFChunker:
         paragraphs = self._split_paragraphs(page_text)
         for para in paragraphs:
             cleaned = self._clean_prose(para)
-            if cleaned and len(cleaned) > 60:
+            if cleaned and len(cleaned) > 20:
                 chunk_id = f"{self.doc_slug}__p{page_num:04d}__prose__{idx:04d}"
                 chunks.append({
                     "chunk_id": chunk_id,

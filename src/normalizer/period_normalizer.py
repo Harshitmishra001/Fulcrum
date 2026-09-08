@@ -39,6 +39,34 @@ class PeriodNormalizer:
             return f"FY{cent}{y2 % 100:02d}"
         return None
 
+    # Half-year patterns: H1/H2/1H/2H
+    HALF_YEAR_PATTERNS = [
+        # H1 FY24, H2 FY2024, H1 FY2024-25
+        (re.compile(r"\b[Hh]([12])\s*(?:of\s+)?FY\s*(?:20)?(\d{2,4})", re.IGNORECASE),
+         lambda m: f"FY20{m.group(2)[-2:]}-H{m.group(1)}"),
+        (re.compile(r"\b([12])[Hh]\s*(?:of\s+)?FY\s*(?:20)?(\d{2,4})", re.IGNORECASE),
+         lambda m: f"FY20{m.group(2)[-2:]}-H{m.group(1)}"),
+        # H1 2024, H2 2024 (calendar)
+        (re.compile(r"\b[Hh]([12])\s*(?:of\s+)?(?:CY\s*)?(\d{4})\b", re.IGNORECASE),
+         lambda m: f"CY{m.group(2)}-H{m.group(1)}"),
+        (re.compile(r"\b([12])[Hh]\s*(?:of\s+)?(?:CY\s*)?(\d{4})\b", re.IGNORECASE),
+         lambda m: f"CY{m.group(2)}-H{m.group(1)}"),
+    ]
+
+    # Partial-year patterns: 9M, 3M, etc.
+    PARTIAL_YEAR_PATTERNS = [
+        # 9M FY24, 3M FY2024
+        (re.compile(r"\b(\d{1,2})[Mm]\s*(?:of\s+)?FY\s*(?:20)?(\d{2,4})", re.IGNORECASE),
+         lambda m: f"FY20{m.group(2)[-2:]}-{m.group(1)}M"),
+        (re.compile(r"\b(\d{1,2})\s*-?\s*months?\s*(?:of\s+)?FY\s*(?:20)?(\d{2,4})", re.IGNORECASE),
+         lambda m: f"FY20{m.group(2)[-2:]}-{m.group(1)}M"),
+        # 9M 2024 (calendar)
+        (re.compile(r"\b(\d{1,2})[Mm]\s*(?:of\s+)?(?:CY\s*)?(\d{4})\b", re.IGNORECASE),
+         lambda m: f"CY{m.group(2)}-{m.group(1)}M"),
+        (re.compile(r"\b(\d{1,2})\s*-?\s*months?\s*(?:of\s+)?(?:CY\s*)?(\d{4})\b", re.IGNORECASE),
+         lambda m: f"CY{m.group(2)}-{m.group(1)}M"),
+    ]
+
     # Fiscal year patterns (split year and single year)
     FY_PATTERNS = [
         (re.compile(r"\bFY\s*(?:20)?(\d{2})[-/](?:20)?(\d{2})\b", re.IGNORECASE),
@@ -91,7 +119,33 @@ class PeriodNormalizer:
                 "normalized": f"CY{year}-Q{quarter}"
             }
 
-        # 1. Check Fiscal Quarter patterns first
+        # 1. Check Half-Year patterns FIRST (H1/H2/1H/2H) — must precede full-year patterns
+        for pattern, formatter in cls.HALF_YEAR_PATTERNS:
+            match = pattern.search(text)
+            if match:
+                res = formatter(match)
+                if res:
+                    period_type = "fiscal_half" if "FY" in res else "calendar_half"
+                    return {
+                        "raw_text": text,
+                        "period_type": period_type,
+                        "normalized": res
+                    }
+
+        # 2. Check Partial-Year patterns (9M, 3M, etc.) — must precede full-year patterns
+        for pattern, formatter in cls.PARTIAL_YEAR_PATTERNS:
+            match = pattern.search(text)
+            if match:
+                res = formatter(match)
+                if res:
+                    period_type = "fiscal_partial" if "FY" in res else "calendar_partial"
+                    return {
+                        "raw_text": text,
+                        "period_type": period_type,
+                        "normalized": res
+                    }
+
+        # 3. Check Fiscal Quarter patterns
         for pattern, formatter in cls.FISCAL_QUARTER_PATTERNS:
             match = pattern.search(text)
             if match:
@@ -103,7 +157,7 @@ class PeriodNormalizer:
                         "normalized": res
                     }
 
-        # 2. Check Calendar Quarter patterns (only if no explicit FY cue)
+        # 4. Check Calendar Quarter patterns (only if no explicit FY cue)
         if "fy" not in text.lower() and "fiscal" not in text.lower():
             for pattern, formatter in cls.CALENDAR_QUARTER_PATTERNS:
                 match = pattern.search(text)
@@ -116,7 +170,7 @@ class PeriodNormalizer:
                             "normalized": res
                         }
 
-        # 3. Check Fiscal Year patterns
+        # 5. Check Fiscal Year patterns
         for pattern, formatter in cls.FY_PATTERNS:
             match = pattern.search(text)
             if match:
@@ -128,7 +182,7 @@ class PeriodNormalizer:
                         "normalized": res
                     }
 
-        # 4. Check Calendar Year patterns (only if no FY or range cues)
+        # 6. Check Calendar Year patterns (only if no FY or range cues)
         if "fy" not in text.lower() and "fiscal" not in text.lower() and not re.search(r"\b\d{2,4}[-/]\d{2,4}\b", text):
             for pattern, formatter in cls.CY_PATTERNS:
                 match = pattern.search(text)

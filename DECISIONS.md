@@ -744,3 +744,19 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 | 50 | Zero-Mock Provenance Invariant | Synthetic/manual records | 100% of facts and relations derived from genuine execution |
 
 
+
+## 51. Shortcut and Hardcode Auditing
+**What we decided:** Introduce a self-penalizing `shortcut_audit.py` module to log every detected domain shortcut or hardcoded assumption.
+**Why we accepted it:** Ensure architectural transparency. If the system takes a shortcut, it's explicitly documented and surfaced rather than silently leaking into production.
+
+## 52. Domain-Neutral Extraction Prompt
+**What we decided:** Rewrote the LLM extraction instructions to replace all macro-economic examples (RBI, GoI, GDP) with generic corporate/institutional terms. Added XML delimiters as prompt injection defense.
+**Why we accepted it:** Over-indexing on the training dataset led to poor generalization on corporate holdouts (Delhivery) and exposed the prompt to adversarial injection.
+
+## 53. Softened Rejection Guards
+**What we decided:** Engine no longer strictly rejects facts with different assertion types (e.g. stated vs projection) or minor dimension variations (e.g. `/gdp` ratios). It evaluates the value conflict and explicitly logs the type difference in the explanation.
+**Why we accepted it:** Strict upstream rejection silenced genuine contradictions. Comparing a stated value against a projection often reveals critical variance that users need to see.
+
+## 54. Blocking Index Pre-computation (O(NÂ·K) Optimization)
+**What we decided:** Comparison engine partitions facts into logical blocks using (dimension, period) tuples before running candidate comparisons, and pre-caches all SQLite chunks into memory.
+**Why we accepted it:** The original nested loop produced O(N^2) evaluation runs and N+1 SQLite thrashing, crashing on large documents. Grouping by dimension bounds the search space sub-linearly and eliminates I/O bottlenecks.

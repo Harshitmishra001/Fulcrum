@@ -2,19 +2,43 @@ import os
 import sqlite3
 import json
 import uuid
+import threading
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from src.config import DB_PATH
 
-def get_db_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
-    effective_path = db_path or os.environ.get("FULCRUM_DB_PATH") or DB_PATH
-    conn = sqlite3.connect(effective_path, timeout=30.0)
+_thread_local = threading.local()
+
+
+def _create_connection(db_path: str) -> sqlite3.Connection:
+    """Creates a new SQLite connection with all required PRAGMAs."""
+    conn = sqlite3.connect(db_path, timeout=30.0)
     conn.row_factory = sqlite3.Row
     try:
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA busy_timeout = 5000;")
+        conn.execute("PRAGMA foreign_keys = ON;")
     except sqlite3.OperationalError:
         pass
+    return conn
+
+
+def get_db_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
+    """Thread-local connection pooling. Custom db_path bypasses pool (for tests)."""
+    effective_path = db_path or os.environ.get("FULCRUM_DB_PATH") or DB_PATH
+    # Custom path = non-pooled (tests, one-off scripts)
+    if db_path:
+        return _create_connection(effective_path)
+    # Thread-local connection reuse — avoids re-executing PRAGMAs per call
+    conn = getattr(_thread_local, 'connection', None)
+    if conn is not None:
+        try:
+            conn.execute("SELECT 1")  # liveness check
+            return conn
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError):
+            _thread_local.connection = None
+    conn = _create_connection(effective_path)
+    _thread_local.connection = conn
     return conn
 
 def init_db(db_path: Optional[str] = None):
@@ -288,5 +312,26 @@ def get_chunks_by_page(doc_slug: str, page: int, window: int = 1, db_path: Optio
     ORDER BY page, chunk_id
     """, (doc_slug, page - window, page + window))
     rows = cursor.fetchall()
-    conn.close()
     return [r["text"] for r in rows]
+
+
+def get_all_chunk_texts(db_path: Optional[str] = None) -> Dict[str, str]:
+    """Pre-loads ALL chunk texts into a dict: {chunk_id → text}. Eliminates N+1 queries."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT chunk_id, text FROM chunks")
+    result = {r["chunk_id"]: r["text"] for r in cursor.fetchall()}
+    return result
+
+
+def get_all_page_chunks(db_path: Optional[str] = None) -> Dict[tuple, List[str]]:
+    """Pre-loads ALL chunks grouped by (doc_slug, page): {(doc, page) → [texts]}. Eliminates N+1 queries."""
+    from collections import defaultdict
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT doc_slug, page, text FROM chunks ORDER BY doc_slug, page, chunk_id")
+    result = defaultdict(list)
+    for r in cursor.fetchall():
+        result[(r["doc_slug"], r["page"])].append(r["text"])
+    return dict(result)
+

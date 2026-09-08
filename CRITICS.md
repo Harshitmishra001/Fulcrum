@@ -428,3 +428,47 @@ To ensure automated tests never corrupt or pollute the submission database ([`fu
 * Result: `pytest tests/ -v` executes **29 comprehensive automated tests** across security, concurrency, generalization, and grounding in ~25 seconds with 100% database isolation.
 
 
+## Audit Round 4 - Principal Systems Auditor & Bar-Raiser (ID: 78b5ee3a)
+*Review Date:* 2026-09-08
+*Reviewer Context:* A cynical, rigorous Principal Software Engineer and hiring bar-raiser acting as a 4th reviewer. Instructed to inspect the codebase from the ground up with ruthless skepticism.
+
+### Major Findings & Remediations:
+
+1. **Foreign Key Illusion (SQLite default behavior)**
+   - *Issue:* `src/db/database.py` created a `relations` table with foreign keys referencing `facts(id)`, but SQLite disables foreign key enforcement by default. Deleting a fact would leave orphaned relations.
+   - *Fix:* Enabled `PRAGMA foreign_keys = ON;` per-connection in `get_db_connection()`. Validated with `test_foreign_keys.py`.
+
+2. **Connection Thrashing & O(N) Query Scaling (N+1 Problem)**
+   - *Issue:* `get_db_connection()` returned a new connection every time. `_attempt_reconciliation` executed a `SELECT` inside a nested loop spanning hundreds of pairs, causing massive I/O thrashing.
+   - *Fix:* Re-implemented `get_db_connection()` using a `threading.local()` connection pool. Added `get_all_chunk_texts()` and `get_all_page_chunks()` to pre-load DB into memory before reconciliation loop.
+
+3. **Silent Dropping of Footnotes (Prose Threshold)**
+   - *Issue:* `len(cleaned) > 60` in `pdf_chunker.py` silently dropped short but highly critical footnotes (e.g. "Restated for operations." or "Provisional estimates.").
+   - *Fix:* Lowered prose threshold to 20 chars in `pdf_chunker.py`. Added unit test.
+
+4. **Holdout Contamination (Overfitting to Delhivery)**
+   - *Issue:* "b2c" and "pbf" (Partial Truckload Freight) were hardcoded in `engine.SECTOR_QUALIFIERS`. A knowledge engine cannot be hardcoded to recognize proprietary acronyms of a specific holdout file.
+   - *Fix:* Purged domain-specific qualifiers. Refactored prompt and engine to rely on general structural extraction.
+
+5. **Prompt Injection Vulnerability in Extractor**
+   - *Issue:* The `EXTRACTION_SYSTEM_PROMPT` directly interpolated raw PDF text without boundary delimiters, allowing adversarial PDFs to override system instructions.
+   - *Fix:* Wrapped PDF text in `<document>` XML tags and added explicit instructions to ignore directives within the tags.
+
+6. **Overfitted /GDP Ratio Rejection Guard**
+   - *Issue:* The engine aggressively checked if one attribute contained `/gdp` while the other didn't, hard-rejecting pairs. This falsely rejected "Current Account Deficit" vs "Current Account Balance/GDP (%)".
+   - *Fix:* Softened the ratio regex. Attributes can be matched if they share core tokens (>=2) and have high semantic similarity (>= 0.60).
+
+7. **Assertion Guard Blindspot (Contradiction Silencing)**
+   - *Issue:* If Fact A was "stated" and Fact B was "projection", the engine hard-rejected comparing them. A stated 0.6% deficit fundamentally contradicts a projected -1.3% deficit if they are for the same period.
+   - *Fix:* Softened the assertion type guard. The engine now proceeds with value comparison and annotates the explanation: "Note: assertion_types differ".
+
+8. **Semantic Gate Hallucinations in Fallback**
+   - *Issue:* Deterministic reconciliation fallback triggered on *any* matching variance word (e.g. "revision"). A sentence about agricultural revisions could "reconcile" an industrial deficit.
+   - *Fix:* Implemented a strict Semantic Relevance Gate. Sentences must now share at least 2 non-trivial keyword tokens with the conflicting facts, OR trigger a strict LLM "YES" classification.
+
+9. **Half-Year and 9M Period Normalization Failures**
+   - *Issue:* "H1 FY24" and "9M FY24" fell through the quarter regex and were normalized as full years ("FY2024"), causing false contradictions between H1 and full-year stats.
+   - *Fix:* Added `HALF_YEAR_PATTERNS` and `PARTIAL_YEAR_PATTERNS` to `period_normalizer.py`.
+
+### Final Architectural Overhaul
+To address these issues systemically, the core `engine.py` was completely rewritten. A blocking index `(dimension, period_normalized)` was introduced to partition facts, dropping the O(N^2) complexity to O(N * K) and preparing the engine to scale to thousands of facts without crashing.

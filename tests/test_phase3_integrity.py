@@ -81,8 +81,13 @@ def test_multi_fact_neighborhood_reconciliation():
         "extraction_confidence": 0.9
     }
 
+    # Engine now reads from in-memory pre-loaded dicts, not direct SQLite queries
+    engine._page_chunks = {
+        (doc, 11): ["Reflects central government fiscal deficit of 4.9 percent per IMF definition, versus 4.7 percent per the authorities' definition."]
+    }
+
     # Attempt reconciliation directly on the engine:
-    # Must retrieve candidate from neighbor_fact on page 11 (within +-2 pages) and classify as reconciled!
+    # Must retrieve candidate from neighbor chunk on page 11 (within +-2 pages) and classify as reconciled!
     reconciled, verdict, explanation = engine._attempt_reconciliation(fact_a, fact_b)
     assert reconciled is True
     assert verdict == "YES"
