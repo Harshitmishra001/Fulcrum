@@ -67,6 +67,10 @@
       <p class="text-xs text-slate-500 mb-4">Upload any PDF (corporate earnings, macro reports). The pipeline will chunk tables/prose, extract facts autonomously, and link cross-document claims.</p>
       <form id="uploadForm" class="flex flex-col sm:flex-row items-center gap-4">
         <input type="file" id="pdfFile" accept="application/pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" required />
+        <select id="maxPagesSelect" class="w-full sm:w-auto text-xs border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50 text-slate-700 font-medium cursor-pointer">
+          <option value="10">Fast Demo (First 10 Pages)</option>
+          <option value="">Full Document (All Pages)</option>
+        </select>
         <button type="submit" id="uploadBtn" class="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm whitespace-nowrap transition">Process & Verify PDF</button>
       </form>
       <div id="uploadStatus" class="hidden mt-3 text-sm"></div>
@@ -188,6 +192,10 @@
 
       const formData = new FormData();
       formData.append('file', fileInput.files[0]);
+      const maxPagesVal = document.getElementById('maxPagesSelect').value;
+      if (maxPagesVal) {
+        formData.append('max_pages', maxPagesVal);
+      }
 
       const status = document.getElementById('uploadStatus');
       const btn = document.getElementById('uploadBtn');

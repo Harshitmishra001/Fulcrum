@@ -228,12 +228,29 @@ class ComparisonEngine:
         return None
 
     def _attempt_reconciliation(self, fact_a: Dict[str, Any], fact_b: Dict[str, Any]) -> Tuple[bool, str, Optional[str]]:
-        cue_pattern = re.compile(r"(advance estimate|revised estimate|provisional|definition|re-estimate|methodology|base year)", re.IGNORECASE)
+        cue_pattern = re.compile(
+            r"(advance estimate|revised estimate|provisional|definition|re-estimate|methodology|base year|authorities)",
+            re.IGNORECASE
+        )
         candidates = []
         for f in [fact_a, fact_b]:
             q = f.get("source_quote", "")
             if cue_pattern.search(q):
                 candidates.append(q)
+
+        # Multi-fact neighborhood context retrieval (Critic 2.1):
+        # If immediate quotes lack reconciliation context, scan neighboring facts within +-2 pages of the same document
+        if not candidates:
+            for f in [fact_a, fact_b]:
+                doc = f.get("source_doc")
+                page = f.get("source_page", 1)
+                if doc:
+                    neighbors = get_active_facts(doc)
+                    for nf in neighbors:
+                        if abs(nf.get("source_page", 1) - page) <= 2:
+                            nq = nf.get("source_quote", "")
+                            if nq and cue_pattern.search(nq) and nq not in candidates:
+                                candidates.append(nq)
 
         if not candidates:
             return False, "NO", None

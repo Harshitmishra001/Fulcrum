@@ -101,7 +101,7 @@ def save_fact(fact_dict: Dict[str, Any], extraction_run_id: str) -> str:
         source_page = 1
 
     cursor.execute("""
-    INSERT INTO facts (
+    INSERT OR REPLACE INTO facts (
         id, extraction_run_id, is_active, entity, attribute, value, value_text, unit,
         period_raw, period_type, period_normalized, assertion_type,
         source_doc, source_page, source_quote, chunk_id, extraction_confidence

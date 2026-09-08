@@ -1,3 +1,4 @@
+import uuid
 import pytest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
@@ -33,13 +34,16 @@ def test_missing_api_key_returns_clean_400_instead_of_500():
 
 def test_reupload_deactivates_stale_facts():
     """Critic 4.2: Re-extracting a document deactivates old facts to prevent duplicates."""
-    doc = "test_doc_dedup"
-    run_1 = "run_alpha"
-    run_2 = "run_beta"
+    uid = uuid.uuid4().hex[:8]
+    doc = f"test_doc_dedup_{uid}"
+    run_1 = f"run_alpha_{uid}"
+    run_2 = f"run_beta_{uid}"
+    fact_id_1 = f"fact_dedup_1_{uid}"
+    fact_id_2 = f"fact_dedup_2_{uid}"
 
     # Insert a fact for run_1
     save_fact({
-        "id": "fact_dedup_1",
+        "id": fact_id_1,
         "entity": "TestEntity",
         "attribute": "TestAttr",
         "value": 10.0,
@@ -47,20 +51,20 @@ def test_reupload_deactivates_stale_facts():
         "source_doc": doc,
         "source_page": 1,
         "source_quote": "Test fact 1",
-        "chunk_id": "test__p0001__0001",
+        "chunk_id": f"test_{uid}__p0001__0001",
         "extraction_confidence": 0.9
     }, extraction_run_id=run_1)
 
     # Verify fact 1 is active
     active_before = get_active_facts(doc)
-    assert any(f["id"] == "fact_dedup_1" for f in active_before)
+    assert any(f["id"] == fact_id_1 for f in active_before)
 
     # Deactivate previous runs when run_2 arrives
     deactivate_previous_runs(doc, run_2)
 
     # Save a fact for run_2
     save_fact({
-        "id": "fact_dedup_2",
+        "id": fact_id_2,
         "entity": "TestEntity",
         "attribute": "TestAttr",
         "value": 12.0,
@@ -68,11 +72,11 @@ def test_reupload_deactivates_stale_facts():
         "source_doc": doc,
         "source_page": 1,
         "source_quote": "Test fact 2",
-        "chunk_id": "test__p0001__0002",
+        "chunk_id": f"test_{uid}__p0001__0002",
         "extraction_confidence": 0.9
     }, extraction_run_id=run_2)
 
     active_after = get_active_facts(doc)
     active_ids = [f["id"] for f in active_after]
-    assert "fact_dedup_1" not in active_ids, "Old fact should be deactivated"
-    assert "fact_dedup_2" in active_ids, "New fact should be active"
+    assert fact_id_1 not in active_ids, "Stale fact from run_1 must be marked inactive"
+    assert fact_id_2 in active_ids, "New fact from run_2 must be active"

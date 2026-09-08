@@ -97,18 +97,27 @@ class FactExtractor:
         # Rule-based extraction confidence calculation (Decision 11)
         score = 0.0
         
-        # Signal 1: Verbatim grounding check (+0.5)
-        # Check case-insensitive or whitespace-normalized substring
-        clean_quote = " ".join(quote.split())
-        clean_chunk = " ".join(chunk_text.split())
+        # Signal 1: Verbatim grounding check (+0.5) (Critic 2.3)
+        # Normalize Unicode dashes, smart quotes, and multiline whitespace
+        def norm(s: str) -> str:
+            s = re.sub(r"[\u2010-\u2015\u2212\u00ad]", "-", s) # all unicode hyphens/dashes to '-'
+            s = re.sub(r"[\u2018\u2019]", "'", s)               # smart single quotes to "'"
+            s = re.sub(r"[\u201C\u201D]", '"', s)               # smart double quotes to '"'
+            s = re.sub(r"[\s\u00a0]+", " ", s)                 # non-breaking spaces & whitespace
+            return s.strip().lower()
+
+        clean_quote = norm(quote)
+        clean_chunk = norm(chunk_text)
         grounded = clean_quote in clean_chunk if clean_quote else False
         if grounded:
             score += 0.5
         else:
-            # Try relaxed search (at least 75% of quote words in chunk)
+            # Try relaxed token overlap search (at least 80% of quote words found in chunk)
             quote_words = clean_quote.split()
-            if len(quote_words) > 3 and sum(1 for w in quote_words if w in clean_chunk) / len(quote_words) >= 0.85:
-                score += 0.3
+            if len(quote_words) >= 3:
+                overlap = sum(1 for w in quote_words if w in clean_chunk) / len(quote_words)
+                if overlap >= 0.80:
+                    score += 0.45
 
         # Signal 2: Clean numeric or clear value (+0.3)
         val = rf.get("value")

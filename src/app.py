@@ -4,7 +4,7 @@ import uuid
 import shutil
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, Request, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -92,7 +92,7 @@ def trigger_comparison():
     return {"status": "ok", "relations_generated": len(relations)}
 
 @app.post("/api/upload")
-def upload_pdf(file: UploadFile = File(...)):
+def upload_pdf(file: UploadFile = File(...), max_pages: Optional[str] = Form(None)):
     raw_name = Path(file.filename).name if file.filename else "upload.pdf"
     if not raw_name.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
@@ -142,7 +142,9 @@ def upload_pdf(file: UploadFile = File(...)):
     doc_slug = safe_stem.lower()
     try:
         chunker = PDFChunker(doc_slug=doc_slug, pdf_path=str(saved_path))
-        chunks = chunker.chunk_document(max_pages=10) # process first 10 pages for snappy demo
+        # Support full document processing or user-selected page limit (Critic 4.1)
+        page_limit = int(max_pages) if (max_pages and str(max_pages).strip() and str(max_pages).strip().isdigit() and int(max_pages) > 0) else None
+        chunks = chunker.chunk_document(max_pages=page_limit)
     except Exception as e:
         # Clean up invalid uploaded file
         if saved_path.exists():

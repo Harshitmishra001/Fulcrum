@@ -28,7 +28,7 @@
 18. Entity Resolution - Embedding Similarity and Thresholds
 19. The Authorities Heuristic - 3-Sentence Window
 20. Reconciliation - Retrieve then Classify, Never Generate
-21. Adjacent = 15 Chunks by Document Order
+21. Adjacent Context = Conflicting Fact Quotes and 2-Page Neighborhood
 22. Comparison Engine - Flat Classifier, Not Full Graph
 23. LLM API Reliability - Retry and Write-Per-Chunk
 24. Golden Set - 30 Facts Including assertion_type
@@ -282,25 +282,25 @@
 
 ## 20. Reconciliation - Retrieve then Classify, Never Generate
 
-**What we decided:** Three-step reconciliation. Step 1 is deterministic retrieval: fetch up to 3 candidate sentences from within 15 chunks, prose only, ranked by BM25 or keyword overlap. No LLM. Step 2 is LLM classification on the top candidate only: YES, PARTIAL, or NO. Does this sentence explain why the two values differ? LLM may not generate a new explanation. Step 3 is deterministic outcome: YES means reconciled; PARTIAL means candidate reconciliation unverified; NO or no candidate means unresolved.
+**What we decided:** Three-step grounded reconciliation. Step 1 is deterministic retrieval: scan candidate explanatory text from the grounded source quotes of the conflicting facts and neighboring facts within a 2-page window of the same document in SQLite, matching explicit revision and definitional cues (advance estimate, revised estimate, provisional, definition, methodology, authorities). Step 2 is zero-generation LLM classification on the retrieved candidate sentence: YES, PARTIAL, or NO. Does this sentence explain why the two values differ? The LLM is strictly forbidden from hallucinating or generating new explanations. Step 3 is deterministic assignment: YES means reconciled; PARTIAL means candidate reconciliation; NO means contradiction.
 
-**What we rejected:** Asking the LLM to propose or generate a reconciliation explanation from the corpus.
+**What we rejected:** Asking the LLM to freely generate an explanation without retrieved candidate evidence. Full-text document-wide BM25 indexing that exceeds prototype complexity.
 
-**The tradeoff:** The retrieve-first approach can only reconcile cases where an explanatory sentence is physically near the original facts within 15 chunks. Cases where the explanation is in a distant methodology annex correctly produce "unresolved."
+**The tradeoff:** Contextual retrieval relies on explanatory notes appearing within the grounded quotes of the conflicting facts or neighboring page facts in the same document. Reconciliations buried in distant annexes without extracted facts are classified as unresolved contradictions.
 
-**Why we accepted it:** If you ask the LLM to generate an explanation, it will, whether or not the explanation is grounded. The reconciliation case is the most impressive-looking output, which makes it the most embarrassing if it falls apart under a follow-up question. Every reconciliation label is backed by a verbatim sentence from the actual document. A grounded unresolved is always better than an ungrounded reconciled.
+**Why we accepted it:** If you ask an LLM to explain why two conflicting numbers differ without grounding, it will fabricate convincing-sounding economic reasons. Grounding the reconciliation strictly on retrieved document sentences ensures every explanation is directly traceable to the source PDF.
 
 ---
 
-## 21. Adjacent = 15 Chunks by Document Order
+## 21. Adjacent Context = Conflicting Fact Quotes and 2-Page Neighborhood
 
-**What we decided:** "Adjacent" for reconciliation retrieval means within 15 chunks by document order of either original fact, same document. Not embedding similarity. Not page proximity.
+**What we decided:** "Adjacent context" for reconciliation retrieval is scoped to the grounded source quotes of the conflicting facts, expanding to neighboring facts within a 2-page window of the same document in SQLite.
 
-**What we rejected:** A larger window such as 50 chunks. Embedding similarity search across the full document.
+**What we rejected:** Full-document generative querying or broad cross-document hallucination.
 
-**The tradeoff:** 15 chunks will miss explanations in a statistical annex far from the figure they explain. This is a genuine and explicitly documented limitation.
+**The tradeoff:** Narrow page-scoped context will miss methodological explanations located in appendices 50 pages away from the data tables.
 
-**Why we accepted it:** A narrow fixed window is honest and checkable. When it misses an explanation, the relation stays unresolved, which is the correct honest output. This limitation is itself a strong candidate for Required Case 4 (the failure case). You can demonstrate exactly why it misses, what would fix it, and that it is a principled design choice, not a bug.
+**Why we accepted it:** Scoping context to neighboring grounded facts in the same document keeps retrieval fast, verifiable, and free of hallucination risk.
 
 ---
 
