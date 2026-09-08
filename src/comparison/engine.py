@@ -437,6 +437,8 @@ class ComparisonEngine:
                     "restated", "restatement", "definition", "methodology", "reclassified",
                     "constant currency", "nominal", "real terms"
                 ]
+                from src.shortcut_audit import log_penalty
+                log_penalty("engine", "hardcode", "Hardcoded generic_variance_markers list used for deterministic reconciliation.")
                 if any(term in cand_lower for term in generic_variance_markers) and len(token_overlap) >= 2:
                     return True, "YES", candidate
 

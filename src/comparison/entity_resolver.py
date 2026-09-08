@@ -1,4 +1,6 @@
 import re
+import os
+import json
 from typing import Dict, Any, Tuple, Optional, List
 from sentence_transformers import SentenceTransformer
 import numpy as np
@@ -25,21 +27,24 @@ class EntityResolver:
         "tax", "gst", "borrowing", "disinvestment", "capital outlay"
     }
 
-    # Common canonical abbreviations lookup (unambiguous entities only)
-    KNOWN_ALIASES = {
-        "goi": "Government of India",
-        "government of india": "Government of India",
-        "rbi": "Reserve Bank of India",
-        "reserve bank of india": "Reserve Bank of India",
-        "imf": "International Monetary Fund",
-        "international monetary fund": "International Monetary Fund",
-        "mospi": "Ministry of Statistics and Programme Implementation",
-        "ministry of statistics and programme implementation": "Ministry of Statistics and Programme Implementation",
-        "nso": "National Statistical Office",
-        "national statistical office": "National Statistical Office"
-    }
+    KNOWN_ALIASES = {}
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+        from src.shortcut_audit import log_penalty
+        
+        # Load externalized aliases config
+        config_path = os.path.join("config", "entity_aliases.json")
+        try:
+            with open(config_path, "r", encoding="utf-8-sig") as f:
+                EntityResolver.KNOWN_ALIASES = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            log_penalty("entity_resolver", "alias_fallback", "Entity aliases config missing, falling back to empty dict.")
+            EntityResolver.KNOWN_ALIASES = {}
+
+        # Log penalties for our remaining hardcoded heuristic lists
+        log_penalty("entity_resolver", "hardcode", "Hardcoded MONETARY_CUES heuristics used instead of an ontology.")
+        log_penalty("entity_resolver", "hardcode", "Hardcoded FISCAL_CUES heuristics used instead of an ontology.")
+
         global _SHARED_SENTENCE_MODEL
         if _SHARED_SENTENCE_MODEL is None:
             _SHARED_SENTENCE_MODEL = SentenceTransformer(model_name)
