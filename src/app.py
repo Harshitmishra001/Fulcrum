@@ -9,11 +9,11 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from src.config import BASE_DIR, DB_PATH
+from src.config import BASE_DIR, DB_PATH, OPENROUTER_API_KEY
 from src.parser.pdf_chunker import PDFChunker
 from src.extractor.extractor import FactExtractor
 from src.comparison.engine import ComparisonEngine
-from src.db.database import init_db, get_active_facts, get_all_relations, save_relation
+from src.db.database import init_db, get_active_facts, get_all_relations, save_relation, deactivate_previous_runs
 
 app = FastAPI(title="Fulcrum Fact Verification Layer", version="1.0.0")
 
@@ -24,7 +24,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "src" / "templates"))
 init_db()
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request):
+def dashboard(request: Request):
     facts = get_active_facts()
     facts_by_id = {f["id"]: f for f in facts}
     raw_relations = get_all_relations()
@@ -76,23 +76,23 @@ async def dashboard(request: Request):
     )
 
 @app.get("/api/facts")
-async def list_facts(doc: Optional[str] = None):
+def list_facts(doc: Optional[str] = None):
     facts = get_active_facts(doc)
     return {"facts": facts, "count": len(facts)}
 
 @app.get("/api/relations")
-async def list_relations():
+def list_relations():
     relations = get_all_relations()
     return {"relations": relations, "count": len(relations)}
 
 @app.post("/api/run-comparison")
-async def trigger_comparison():
+def trigger_comparison():
     engine = ComparisonEngine()
     relations = engine.run_comparison()
     return {"status": "ok", "relations_generated": len(relations)}
 
 @app.post("/api/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+def upload_pdf(file: UploadFile = File(...)):
     raw_name = Path(file.filename).name if file.filename else "upload.pdf"
     if not raw_name.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
@@ -104,6 +104,18 @@ async def upload_pdf(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=400,
             detail="Invalid file format: Not a genuine PDF document (missing %PDF- magic header)."
+        )
+
+    # Pre-flight API key verification: Prevent 500 crashes if evaluator has no API key
+    if not OPENROUTER_API_KEY or "your_" in OPENROUTER_API_KEY or not OPENROUTER_API_KEY.strip():
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "OpenRouter API key is required to extract facts from new PDFs. "
+                "Please configure OPENROUTER_API_KEY in your .env file. "
+                "The starter dataset (RBI, IMF, Economic Survey) is already pre-cached in fulcrum.db "
+                "and can be explored immediately on the dashboard without an API key."
+            )
         )
 
     uploads_dir = (BASE_DIR / "uploads").resolve()
@@ -142,6 +154,10 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     extractor = FactExtractor()
     run_id = f"upload_{file_id}"
+    
+    # Soft-deactivate previous runs for this document to prevent duplicate facts & phantom corroborations
+    deactivate_previous_runs(doc_slug, run_id)
+
     extracted_facts = extractor.process_chunks_to_db(chunks, extraction_run_id=run_id)
 
     # Re-run comparison engine to cross-reference newly extracted facts

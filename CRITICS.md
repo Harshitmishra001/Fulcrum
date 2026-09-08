@@ -24,12 +24,13 @@ This document records all 12 concrete critiques raised during the adversarial gr
 ---
 
 ### Critic 1.2: ASGI Event Loop Starvation & Server Denial of Service
-* **File / Location:** [`src/app.py:93-126`](src/app.py#L93-L126)
-* **The Issue:** The `/api/upload` endpoint is declared as `async def upload_pdf(...)`, meaning FastAPI schedules it directly on the single main `asyncio` event loop thread. However, the handler calls heavy synchronous blocking tasks: `PDFChunker.chunk_document()`, sequential OpenAI LLM calls with `time.sleep(0.2)` retries, and $O(N^2)$ comparison loops. A single upload freezes the entire web server for 30–60 seconds, preventing all concurrent users from loading the UI or querying facts.
-* **Fix Option 1 (FastAPI Threadpool Worker):**
-  * Change the endpoint declaration from `async def upload_pdf` to standard synchronous `def upload_pdf`. FastAPI automatically delegates synchronous `def` routes to an external `ThreadPoolExecutor`, preventing the main asyncio event loop from blocking.
-* **Fix Option 2 (Background Tasks / Async Job Queue):**
-  * Use FastAPI `BackgroundTasks` or an async worker: save the file immediately, insert an `in_progress` extraction job record, return a `202 Accepted` with a `job_id`, and run the extraction in the background. The frontend polls `/api/jobs/{job_id}` for progress updates.
+* **Status:** ✅ **RESOLVED** (Verified in `tests/test_upload_lifecycle.py`)
+* **File / Location:** [`src/app.py:26-95`](src/app.py#L26-L95)
+* **The Issue:** The `/api/upload`, `/api/run-comparison`, and query endpoints were declared as `async def`, causing blocking tasks (PDF parsing, sequential OpenRouter HTTP calls, $O(N^2)$ comparison loops) to run directly on FastAPI's single asyncio event loop. A single upload locked the server for 30–60s.
+* **Remediation Implemented:**
+  * Converted all synchronous blocking endpoints (`dashboard`, `list_facts`, `list_relations`, `trigger_comparison`, and `upload_pdf`) from `async def` to standard `def`.
+  * FastAPI now automatically dispatches these handlers to its background `ThreadPoolExecutor` via Starlette `run_in_threadpool`, ensuring the event loop remains completely unblocked for concurrent requests.
+* **Verification:** `tests/test_upload_lifecycle.py::test_sync_endpoints_serve_fast` verifies that query endpoints respond immediately.
 
 ---
 
@@ -124,26 +125,23 @@ This document records all 12 concrete critiques raised during the adversarial gr
 ---
 
 ### Critic 4.2: Duplicate Fact Explosion & False Corroborations on Re-Upload
-* **File / Location:** [`src/app.py:114`](src/app.py#L114)
-* **The Issue:** When a file is uploaded, a random run ID `upload_{file_id}` is assigned. If an evaluator uploads the same document twice (or a revised version), the old facts remain `is_active = 1`. The comparison engine pairs the old facts with the new identical facts, generating hundreds of meaningless corroborations between a fact and its clone.
-* **Fix Option 1 (Deactivate Existing Document Facts):**
-  * Before saving new facts for `doc_slug`, execute an update query in `database.py`:
-    ```python
-    cursor.execute("UPDATE facts SET is_active = 0 WHERE source_doc = ?", (doc_slug,))
-    ```
-* **Fix Option 2 (Content-Hashing Deduplication):**
-  * Compute the SHA-256 hash of the uploaded PDF. If the hash already exists in a `documents` table, prompt the user or reuse existing extractions rather than creating duplicate active facts.
+* **Status:** ✅ **RESOLVED** (Verified in `tests/test_upload_lifecycle.py`)
+* **File / Location:** [`src/app.py:141`](src/app.py#L141) & [`src/db/database.py:131`](src/db/database.py#L131)
+* **The Issue:** When a file was uploaded, a random run ID `upload_{file_id}` was assigned without deactivating prior runs for the same document. Re-uploading a document caused hundreds of identical active facts and false corroborations with clones.
+* **Remediation Implemented:**
+  * Called `deactivate_previous_runs(doc_slug, run_id)` in `src/app.py` before inserting facts from the new run. Older facts for that document are safely marked `is_active = 0`, ensuring deduplication while preserving run history.
+* **Verification:** `tests/test_upload_lifecycle.py::test_reupload_deactivates_stale_facts` verified that older facts are marked inactive when a new run is ingested.
 
 ---
 
 ### Critic 4.3: "Zero-Key Evaluator Experience" Crashes with 500 on Upload
-* **File / Location:** [`src/app.py:113`](src/app.py#L113)
-* **The Issue:** The README advertises that evaluators can run the system without an API key. However, if an evaluator clicks "Upload PDF" without having configured `OPENROUTER_API_KEY` in `.env`, the server attempts to call OpenRouter, throws an unhandled authentication exception, and returns an internal server 500 error.
-* **Fix Option 1 (Pre-Flight Key Check & Graceful UI Error):**
-  * In `/api/upload`, check `if not OPENROUTER_API_KEY or "your_" in OPENROUTER_API_KEY:` at the very start. If missing, return an HTTP 400 with an explicit, helpful JSON message:
-    `{"error": "Missing OpenRouter API Key. Live extraction on new PDFs requires an API key in .env. Pre-cached starter results are available on the dashboard."}`
-* **Fix Option 2 (Offline Mock / Demo Extraction Mode):**
-  * If no API key is detected, offer an *"Offline Evaluation Mode"* that runs rule-based regex extraction or loads a pre-packaged fixture sample for the uploaded document.
+* **Status:** ✅ **RESOLVED** (Verified in `tests/test_upload_lifecycle.py`)
+* **File / Location:** [`src/app.py:105-115`](src/app.py#L105-L115)
+* **The Issue:** The README advertised zero-key evaluation, but if an evaluator clicked "Upload PDF" without `OPENROUTER_API_KEY`, the server crashed with an unhandled 500 error.
+* **Remediation Implemented:**
+  * Added an explicit pre-flight check at the entry of `upload_pdf`: validates `OPENROUTER_API_KEY` presence and rejects empty or placeholder keys (`"your_..."`).
+  * Returns a clear HTTP 400 Bad Request explaining that live extraction requires an API key in `.env` while reminding the user that the starter dataset is pre-cached and fully functional without an API key.
+* **Verification:** `tests/test_upload_lifecycle.py::test_missing_api_key_returns_clean_400_instead_of_500` verifies that missing API key returns a clean 400 error.
 
 ---
 
