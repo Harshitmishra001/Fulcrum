@@ -109,15 +109,23 @@ class FactExtractor:
         clean_quote = norm(quote)
         clean_chunk = norm(chunk_text)
         grounded = clean_quote in clean_chunk if clean_quote else False
+        quote_words = clean_quote.split()
+        relaxed_grounded = False
+        if not grounded and len(quote_words) >= 3:
+            overlap = sum(1 for w in quote_words if w in clean_chunk) / len(quote_words)
+            if overlap >= 0.80:
+                relaxed_grounded = True
+
+        # Non-negotiable grounding invariant:
+        # A fact MUST be grounded in the source chunk to enter the knowledge layer.
+        # Ungrounded quotes are rejected immediately regardless of numeric values or period presence.
+        if not grounded and not relaxed_grounded:
+            return None
+
         if grounded:
             score += 0.5
-        else:
-            # Try relaxed token overlap search (at least 80% of quote words found in chunk)
-            quote_words = clean_quote.split()
-            if len(quote_words) >= 3:
-                overlap = sum(1 for w in quote_words if w in clean_chunk) / len(quote_words)
-                if overlap >= 0.80:
-                    score += 0.45
+        elif relaxed_grounded:
+            score += 0.45
 
         # Signal 2: Clean numeric or clear value (+0.3)
         val = rf.get("value")

@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import json
 import uuid
@@ -5,13 +6,19 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from src.config import DB_PATH
 
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+def get_db_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
+    effective_path = db_path or os.environ.get("FULCRUM_DB_PATH") or DB_PATH
+    conn = sqlite3.connect(effective_path, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA busy_timeout = 5000;")
+    except sqlite3.OperationalError:
+        pass
     return conn
 
-def init_db():
-    conn = get_db_connection()
+def init_db(db_path: Optional[str] = None):
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
     
     # Facts table
@@ -54,11 +61,12 @@ def init_db():
     );
     """)
     
-    # Indexes for performance
+    # Indexes for performance and deduplication
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_facts_active ON facts(is_active);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_facts_doc ON facts(source_doc, is_active);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_facts_entity_attr ON facts(entity, attribute, is_active);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_relations_pair ON relations(fact_a_id, fact_b_id);")
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_relations_unique_pair ON relations(fact_a_id, fact_b_id);")
     
     conn.commit()
     conn.close()
@@ -152,12 +160,22 @@ def get_active_facts(doc_filter: Optional[str] = None) -> List[Dict[str, Any]]:
     return rows
 
 def save_relation(rel_dict: Dict[str, Any]) -> str:
-    """Saves a relation between two facts."""
+    """Saves or updates a relation between two facts without duplicating pairs."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    rel_id = rel_dict.get('id') or str(uuid.uuid4())
+    
+    # Check if a relation between this pair (in either direction) already exists
     cursor.execute("""
-    INSERT INTO relations (
+    SELECT id FROM relations 
+    WHERE (fact_a_id = ? AND fact_b_id = ?) 
+       OR (fact_a_id = ? AND fact_b_id = ?)
+    """, (rel_dict['fact_a_id'], rel_dict['fact_b_id'], rel_dict['fact_b_id'], rel_dict['fact_a_id']))
+    existing = cursor.fetchone()
+    
+    rel_id = existing['id'] if existing else (rel_dict.get('id') or str(uuid.uuid4()))
+    
+    cursor.execute("""
+    INSERT OR REPLACE INTO relations (
         id, fact_a_id, fact_b_id, relation_type, explanation, evidence_quote, entity_resolution_confidence
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (

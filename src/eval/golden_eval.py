@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import List, Dict, Any, Tuple
 from src.normalizer.unit_normalizer import UnitNormalizer
 from src.db.database import get_active_facts
@@ -41,17 +42,31 @@ class GoldenEvaluator:
                 ext_page = ext.get("source_page")
                 ext_assertion = ext.get("assertion_type")
 
-                # Match if page is within +/- 1, periods match, and values match within tolerance
+                # Match if page is within +/- 1, periods match, values match, and attributes match
                 page_match = abs(ext_page - gold_page) <= 1 if ext_page and gold_page else True
                 period_match = (ext_norm_period == gold_period) if (ext_norm_period and gold_period) else True
 
+                # Attribute match: exact, substring, or substantive token overlap
+                gold_attr = gold.get("attribute", "").lower().strip()
+                ext_attr = (ext.get("attribute") or "").lower().strip()
+                attr_words_g = set(re.findall(r"\b[a-z]{3,}\b", gold_attr))
+                attr_words_e = set(re.findall(r"\b[a-z]{3,}\b", ext_attr))
+                attr_overlap = attr_words_g.intersection(attr_words_e)
+                attr_match = (
+                    gold_attr == ext_attr
+                    or gold_attr in ext_attr
+                    or ext_attr in gold_attr
+                    or (len(attr_words_g) > 0 and len(attr_overlap) / len(attr_words_g) >= 0.4)
+                )
+
                 val_match = False
+                ext_unit = ext.get("unit")
                 if isinstance(gold_val, (int, float)) and isinstance(ext_val, (int, float)):
-                    val_match = UnitNormalizer.values_match(float(gold_val), float(ext_val), gold_unit)
+                    val_match = UnitNormalizer.values_match(float(gold_val), float(ext_val), gold_unit, ext_unit)
                 elif str(gold_val).lower().strip() in str(ext_val).lower().strip():
                     val_match = True
 
-                if page_match and period_match and val_match:
+                if page_match and period_match and val_match and attr_match:
                     matched_golden_ids.add(gold["id"])
                     assertion_correct = (gold_assertion == ext_assertion)
                     if assertion_correct:
@@ -81,6 +96,8 @@ class GoldenEvaluator:
             "assertion_type_accuracy": round(assertion_acc, 3),
             "matches": matches
         }
+
+    evaluate = evaluate_facts
 
     def print_report(self, results: Dict[str, Any]):
         print("\n==========================================")

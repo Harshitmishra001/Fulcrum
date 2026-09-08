@@ -3,15 +3,14 @@ from typing import Dict, Any, Tuple, Optional, List
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
+_SHARED_SENTENCE_MODEL = None
+
 class EntityResolver:
     """
-    Entity resolution layer:
-    1. Local sentence embedding cosine similarity (0 API cost).
-    2. Three confidence bands (Decision 18):
-       - >= 0.85: High confidence (compare normally)
-       - 0.65 - 0.85: Low confidence (label as uncertain in UI)
-       - < 0.65: Below threshold (no relation created)
-    3. "The authorities" heuristic (Decision 19):
+    Two-stage entity resolution (Decision 18):
+    1. Fast lookup: exact canonical name / known aliases / acronyms.
+    2. Embedding cosine similarity (SentenceTransformer) with threshold 0.85.
+    Special handling for 'the authorities' (Decision 19):
        - 3-sentence window keyword vote between monetary and fiscal cues.
     """
 
@@ -26,18 +25,14 @@ class EntityResolver:
         "tax", "gst", "borrowing", "disinvestment", "capital outlay"
     }
 
-    # Common canonical abbreviations lookup
+    # Common canonical abbreviations lookup (unambiguous entities only)
     KNOWN_ALIASES = {
         "goi": "Government of India",
         "government of india": "Government of India",
         "central government": "Government of India",
-        "centre": "Government of India",
         "rbi": "Reserve Bank of India",
         "reserve bank of india": "Reserve Bank of India",
-        "central bank": "Reserve Bank of India",
-        "reserve bank": "Reserve Bank of India",
         "imf": "International Monetary Fund",
-        "fund": "International Monetary Fund",
         "international monetary fund": "International Monetary Fund",
         "mospi": "Ministry of Statistics and Programme Implementation",
         "ministry of statistics and programme implementation": "Ministry of Statistics and Programme Implementation",
@@ -46,8 +41,10 @@ class EntityResolver:
     }
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        # Fast, lightweight local embedding model
-        self.model = SentenceTransformer(model_name)
+        global _SHARED_SENTENCE_MODEL
+        if _SHARED_SENTENCE_MODEL is None:
+            _SHARED_SENTENCE_MODEL = SentenceTransformer(model_name)
+        self.model = _SHARED_SENTENCE_MODEL
 
     def _clean_entity_name(self, name: str) -> str:
         s = name.lower().strip()
@@ -59,29 +56,27 @@ class EntityResolver:
         """
         Decision 19 (Hardened for Critic 2.2):
         3-sentence window keyword vote with sovereign scope awareness.
-        - Checks whether context mentions foreign sovereigns (Federal Reserve, Bank of England, US, UK).
-        - If foreign cues detected, does NOT map to Indian institutions.
-        - If monetary_hits > fiscal_hits:
-            * foreign -> "National Central Bank" (0.65)
-            * default/India -> "Reserve Bank of India" (0.70)
-        - If fiscal_hits > monetary_hits:
-            * foreign -> "National Government" (0.65)
-            * default/India -> "Government of India" (0.70)
+        - Checks whether context mentions Indian vs foreign sovereigns.
+        - Maps to RBI/GoI only when Indian sovereign context is present.
+        - Maps to National Central Bank / National Government for international/foreign contexts.
         - Tied or zero -> "AMBIGUOUS" (0.40, falls below 0.65 threshold)
         """
         text_lower = surrounding_text.lower()
         monetary_hits = sum(1 for cue in self.MONETARY_CUES if cue in text_lower)
         fiscal_hits = sum(1 for cue in self.FISCAL_CUES if cue in text_lower)
 
-        foreign_cues = ("federal reserve", "bank of england", "ecb", "treasury", "united states", "united kingdom", "fed")
+        foreign_cues = ("federal reserve", "bank of england", "ecb", "treasury", "united states", "united kingdom", "fed", "fomc")
+        indian_cues = ("india", "rbi", "rupee", "inr", "crore", "lakh", "delhi", "mumbai", "union budget", "repo rate", "repo", "mpc", "gst")
+        
         is_foreign = any(fc in text_lower for fc in foreign_cues)
+        is_indian = any(ic in text_lower for ic in indian_cues)
 
         if monetary_hits > fiscal_hits:
-            if is_foreign:
+            if is_foreign or not is_indian:
                 return "National Central Bank", 0.65
             return "Reserve Bank of India", 0.70
         elif fiscal_hits > monetary_hits:
-            if is_foreign:
+            if is_foreign or not is_indian:
                 return "National Government", 0.65
             return "Government of India", 0.70
         else:

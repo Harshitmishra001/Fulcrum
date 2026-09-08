@@ -81,24 +81,10 @@ def test_multi_fact_neighborhood_reconciliation():
         "extraction_confidence": 0.9
     }
 
-    # Attempt reconciliation: should find candidate from neighbor_fact on page 11 (abs(11-10) <= 2)
-    # Even if LLM call is mocked or skipped, candidate text is successfully retrieved!
-    cue_pattern = engine._attempt_reconciliation
-    # Directly test the candidate collection logic
-    candidates = []
-    for f in [fact_a, fact_b]:
-        q = f.get("source_quote", "")
-        if "definition" in q.lower() or "revised" in q.lower():
-            candidates.append(q)
-    if not candidates:
-        from src.db.database import get_active_facts
-        for f in [fact_a, fact_b]:
-            neighbors = get_active_facts(f.get("source_doc"))
-            for nf in neighbors:
-                if abs(nf.get("source_page", 1) - f.get("source_page", 1)) <= 2:
-                    nq = nf.get("source_quote", "")
-                    if "definition" in nq.lower():
-                        candidates.append(nq)
-
-    assert len(candidates) >= 1
-    assert "authorities' definition" in candidates[0]
+    # Attempt reconciliation directly on the engine:
+    # Must retrieve candidate from neighbor_fact on page 11 (within +-2 pages) and classify as reconciled!
+    reconciled, verdict, explanation = engine._attempt_reconciliation(fact_a, fact_b)
+    assert reconciled is True
+    assert verdict == "YES"
+    assert explanation is not None
+    assert "authorities' definition" in explanation

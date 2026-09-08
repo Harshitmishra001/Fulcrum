@@ -30,7 +30,7 @@ Every case in Fulcrum is grounded in verified document text, recorded in [`FIGUR
 
 ## 🚀 Quickstart (Inspect Pre-Cached Results)
 
-The repository includes a pre-populated SQLite database ([`fulcrum.db`](fulcrum.db)) containing 220+ active facts and 100+ relations extracted from the starter macro datasets. **You do not need an API key to run or evaluate the UI.**
+The repository includes a pre-populated SQLite database ([`fulcrum.db`](fulcrum.db)) containing **275 active facts and 159 relations** extracted from all three starter macro datasets (RBI, IMF, and Economic Survey, including genuine Case 3 reconciled relations). **You do not need an API key to run or evaluate the UI.**
 
 ### 1. Install Dependencies
 ```bash
@@ -113,8 +113,10 @@ Every technical decision, rejected alternative, and accepted tradeoff is documen
 - **No Graph DB Overhead (Decision 8)**: Uses SQLite with indexed relational pairing rather than complex graph databases. Flat classifier operating on fact pairs directly answers the core questions without graph traversal latency.
 - **Local Embedding Resolution (Decision 18)**: Uses local `sentence-transformers` (`all-MiniLM-L6-v2`) for zero-cost entity similarity with 3 confidence bands (>=0.85 high, 0.65-0.85 uncertain, <0.65 reject).
 - **The Authorities Heuristic (Decision 19)**: 3-sentence keyword vote resolving IMF's "the authorities" to RBI (monetary context) or GoI (fiscal context), failing safe to `AMBIGUOUS` (0.40) when uncertain.
-- **Retrieve-Then-Classify Reconciliation (Decision 20)**: Retrieves candidate explanatory sentences within 15 chunks deterministically before asking the LLM only to classify (*YES / PARTIAL / NO*). The model is forbidden from hallucinating new explanations.
-- **Deterministic Normalization (Decisions 10, 34, 35)**: Fiscal years (`FY2024-25` → `FY2025`) and units (₹ Crore, Lakhs, USD Bn, %) are normalized with deterministic regex and conversion tables, never unmonitored LLM transforms.
+- **Retrieve-Then-Classify Reconciliation (Decisions 20 & 21)**: Queries candidate context from source quotes and all neighboring facts within ±2 pages across both documents, asking the LLM only to classify (*YES / PARTIAL / NO*). The model is strictly forbidden from generating ungrounded facts.
+- **Deterministic Normalization (Decisions 10, 34, 35, 43)**: Fiscal years (`FY2024-25` → `FY2025`), calendar periods, and units (₹ Crore, Lakhs, USD Bn, %) are normalized with deterministic regex and dimensional conversion tables, never unmonitored LLM transforms.
+- **Verbatim Grounding Invariant (Decision 42)**: Any extracted fact whose quote does not appear verbatim in the source chunk text or pass an 80% token overlap threshold is discarded immediately at ingestion.
+- **Concurrency & Deduplication (Decision 44)**: SQLite WAL mode and busy timeouts prevent locking across concurrent threads, while bidirectional indexing guarantees unique relation pairs.
 
 ---
 
@@ -141,12 +143,20 @@ Fulcrum/
 │   │   └── pdf_chunker.py         # Structural PDF chunker with table validation
 │   └── templates/
 │       └── index.html             # Interactive Argument Cards dashboard
+├── tests/                         # Comprehensive isolated automated test suite (24 tests)
+│   ├── conftest.py                # Isolated SQLite database fixture
+│   ├── test_upload_security.py    # Path traversal, magic bytes, corrupt PDF rejection
+│   ├── test_upload_lifecycle.py   # Sync threadpool, clean 400s, stale run deactivation
+│   ├── test_generalization.py     # Bounded vector cache, corporate metrics, headers
+│   ├── test_phase3_integrity.py   # Verbatim grounding, multi-fact context retrieval
+│   └── test_auditor2_remediation.py # 10 automated tests verifying 2nd bar-raiser audit fixes
 ├── data/
 │   ├── golden_set_rbi.json        # 30 hand-annotated ground truth facts for scoring
 │   └── alias_eval_pairs.json      # 15 entity alias evaluation test pairs
 ├── starter-datasets/              # Starter PDFs (India Macro & Delhivery holdout)
-├── DECISIONS.md                   # Complete architectural decision log (39 decisions)
+├── DECISIONS.md                   # Complete architectural decision log (45 decisions)
 ├── FIGURES.md                     # Step 0 verified macroeconomic ground truth matrix
+├── CRITICS.md                     # Ground-up adversarial audit reports & resolutions
 ├── requirements.txt               # Dependencies manifest
 └── README.md                      # This documentation
 ```
@@ -156,9 +166,9 @@ Fulcrum/
 ## 🧪 Running Automated Tests
 
 ```bash
-# Test entity resolver against alias eval set
-python scratch/test_entity_resolver.py
+# Run the complete isolated test suite (24 tests covering security, concurrency, generalization, and grounding)
+python -m pytest tests/ -v
 
-# Test golden set evaluation
+# Run golden set evaluation against RBI hand-annotated benchmark
 python -c "from src.eval.golden_eval import GoldenEvaluator; from src.db.database import get_active_facts; GoldenEvaluator().print_report(GoldenEvaluator().evaluate_facts(get_active_facts('rbi')))"
 ```

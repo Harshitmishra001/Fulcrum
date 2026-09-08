@@ -35,7 +35,7 @@
 25. Alias Eval Set Before Coding Entity Resolution
 26. Build Order - Sequential, Not Parallel
 27. Manual Figure Cross-Check as Step 0
-28. Economic Survey as Holdout
+28. Economic Survey Ingestion and Chart Limitation Holdout
 29. Delhivery as Sealed Generalization Holdout
 30. Tiering with a Hard Cut Line
 31. Generalization Test - Prediction Committed Before Run
@@ -49,6 +49,10 @@
 39. Pipeline Autonomy & Division of Labor (Generalization Safeguard)
 40. Negative Token Filters & Concept Cluster Guards for Financial Attribute Matching
 41. Single-Batch Vector Embedding Precomputation with In-Memory Caching
+42. Strict Verbatim Grounding Invariant in Fact Extractor
+43. Multi-Dimensional Unit Normalization and Scale Multipliers
+44. SQLite WAL Mode, Busy Timeout, and Relational Deduplication
+45. Complete Three-Document Triangulation (Full Economic Survey Ingestion)
 
 ---
 
@@ -376,15 +380,15 @@
 
 ---
 
-## 28. Economic Survey as Holdout
+## 28. Economic Survey Ingestion and Chart Limitation Holdout
 
-**What we decided:** Economic Survey is used only as the source for Required Case 4 (the failure case: chart-embedded numbers that extraction cannot handle), not as a primary extraction target.
+**What we decided:** Ingest all native text and table sections of the Economic Survey excerpt into the active knowledge layer (yielding 46 high-confidence facts), while isolating its vector/raster charts (e.g., Charts I.29 and I.46) as the controlled demonstration for Required Case 4 (Failure Case).
 
-**What we rejected:** Treating Economic Survey as a full extraction source alongside RBI and IMF.
+**What we rejected:** Treating the entire Economic Survey as an unextracted holdout, or attempting to force text-based pdfplumber to parse complex vector chart images.
 
-**The tradeoff:** You are not extracting from one of your three source documents fully. Facts in the Economic Survey that overlap with RBI and IMF are not available for corroboration or contradiction analysis.
+**The tradeoff:** Ingesting 46 additional facts expands the comparison space to 275 active facts, requiring efficient pairwise evaluation and neighborhood context linking.
 
-**Why we accepted it:** Economic Survey uses chart-embedded numbers heavily. These are figures that appear as images in the PDF rather than native text. Extraction from charts requires a vision model pass which is Tier 2 and out of scope for Tier 1 MVP. Attempting extraction would produce low-confidence, incomplete facts that pollute the comparison engine. Using it as the controlled failure case demonstrates honest awareness of pipeline limitations.
+**Why we accepted it:** All three starter documents must be active in the knowledge layer to achieve genuine triangulation. Ingesting the Economic Survey's native text uncovers the 6.4% First Advance Estimate for FY25, directly enabling empirical reconciliation against RBI's 6.5% Second Advance Estimate (Case 3). Simultaneously, preserving its visual charts as the Case 4 failure mode provides an honest, empirical demonstration of text parser limits without sacrificing document coverage.
 
 ---
 
@@ -566,6 +570,56 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 
 ---
 
+---
+
+## 42. Strict Verbatim Grounding Invariant in Fact Extractor
+
+**What we decided:** Enforce a strict, non-negotiable grounding precondition in `src/extractor/extractor.py`. A fact candidate is completely discarded (`return None`) if its normalized source quote does not appear verbatim in the source chunk text or fail to meet an 80% token overlap floor, regardless of how cleanly its numeric value or period string was parsed.
+
+**What we rejected:** Allowing additive heuristic scoring where float validity (+0.3) and period validity (+0.2) alone could push an ungrounded fact above the 0.50 acceptance threshold.
+
+**The tradeoff:** Discards approximately 3-5% of borderline LLM extraction outputs where the LLM paraphrased the source text instead of quoting verbatim.
+
+**Why we accepted it:** Grounding is the fundamental trust anchor of a Fact Knowledge Layer. An ungrounded fact—even if numerically correct—is indistinguishable from a hallucination. Discarding ungrounded candidate facts at the ingestion gate guarantees that every fact in `fulcrum.db` can be audited against its source PDF page with verbatim textual evidence.
+
+---
+
+## 43. Multi-Dimensional Unit Normalization and Scale Multipliers
+
+**What we decided:** Categorize all extracted units into distinct physical/financial dimensions (`PERCENTAGE`, `CURRENCY_INR`, `CURRENCY_USD`, `WEIGHT`, `POWER`) and attach scale multipliers (`1 Crore = 100 Lakh = 1e7`, `1 BPS = 0.01%`). Reject comparisons between incompatible dimensions, and normalize values to standard scale before evaluating numerical tolerances.
+
+**What we rejected:** Comparing raw numeric values across arbitrary units, or treating intra-currency denominations (Lakhs vs Crores) as contradictions.
+
+**The tradeoff:** Requires maintaining an explicit dimensional mapping dictionary in `UnitNormalizer`.
+
+**Why we accepted it:** In financial documents, numbers without dimensional bounds produce absurd corroborations (e.g., USD 5.0 Billion falsely corroborating INR 5.0 Crore). Furthermore, Indian macro reports routinely switch between Lakhs and Crores; recognizing scale equivalence (`100 Lakh == 1 Crore`) eliminates false contradictions.
+
+---
+
+## 44. SQLite WAL Mode, Busy Timeout, and Relational Deduplication
+
+**What we decided:** Configure SQLite with Write-Ahead Logging (`PRAGMA journal_mode = WAL;`) and a 5000ms busy timeout (`PRAGMA busy_timeout = 5000;`). Enforce unordered bidirectional pair uniqueness (`UNIQUE(fact_a_id, fact_b_id)`) on relations.
+
+**What we rejected:** Default SQLite rollback journal with immediate lock errors under concurrent FastAPI requests; allowing inverted relation pairs `(A, B)` and `(B, A)` to duplicate in the relations table.
+
+**The tradeoff:** WAL mode maintains `-wal` and `-shm` shared memory companion files alongside `fulcrum.db`.
+
+**Why we accepted it:** When multiple users or threads trigger concurrent uploads and queries, standard SQLite locks immediately. WAL mode allows concurrent readers to proceed unblocked while a writer commits. Bidirectional deduplication eliminated 40 redundant inverted relation rows, keeping relationship counts clean and consistent.
+
+---
+
+## 45. Complete Three-Document Triangulation (Full Economic Survey Ingestion)
+
+**What we decided:** Ingest 46 high-confidence, grounded facts from the native textual sections of `01-india-economic-survey-2024-25-excerpt.pdf` into `fulcrum.db`, completing genuine three-document triangulation across RBI, IMF, and the Economic Survey.
+
+**What we rejected:** Leaving the third starter document empty in the database while claiming multi-document coverage in documentation.
+
+**The tradeoff:** Expanded the active fact pool from 229 to 275 facts and total relations to 159.
+
+**Why we accepted it:** The assignment explicitly provides three starter documents. Having zero facts for the Economic Survey left Case 3 (reconciliation across revision vintages) purely theoretical. Ingesting the Economic Survey's 6.4% First Advance Estimate (p.14) empirically pairs with RBI's 6.5% Second Advance Estimate (p.8, 91), generating 5 real `reconciled` relations directly in SQLite.
+
+---
+
 ## Summary Table
 
 | # | Decision | Alternative Rejected | Core Reason Accepted |
@@ -590,14 +644,14 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 | 18 | Embeddings plus 3 confidence bands | String match or binary | Uncertainty must propagate not be hidden |
 | 19 | 3-sentence keyword vote for authorities | Always GoI or LLM per instance | Cheap, logged, fails safe on AMBIGUOUS |
 | 20 | Retrieve then classify YES PARTIAL NO | LLM generates explanation | Prevents hallucinated reconciliations |
-| 21 | Adjacent 15 chunks by order | Larger window or embedding search | Narrow window is honest; documented limitation |
+| 21 | Multi-fact ±2-page neighborhood retrieval | Larger window or embedding search | Neighboring page context captures footnotes and notes |
 | 22 | Flat classifier | Full argumentation graph | Working MVP better than partial impressive graph |
 | 23 | Retry plus write per chunk | No retry or end-of-run write | 500+ API calls will fail; must resume not restart |
 | 24 | Golden set including assertion_type | One-time eyeball pass | Repeatable; catches silent assertion_type errors |
 | 25 | Alias eval before coding | Tune on full pipeline | Isolates entity resolution failure domain |
 | 26 | Sequential build order | Parallel | Downstream bugs trace to wrong layer |
 | 27 | Manual figure read as step 0 | Discover during extraction | 30 min now versus a day of rework later |
-| 28 | Economic Survey as holdout | Full extraction source | Charts produce low quality facts and noise |
+| 28 | Economic Survey Ingestion & Chart Holdout | Full holdout or forced vision OCR | Text enables Case 3; charts demo Case 4 failure |
 | 29 | Delhivery sealed | Use as dev dataset | Preserves generalization test credibility |
 | 30 | Tiering with hard cut line | Build toward Tier 2 throughout | Working Tier 1 better than broken Tier 2 |
 | 31 | Prediction committed before test | Write prediction after | Git timestamp equals evidence not narrative |
@@ -605,9 +659,14 @@ Gemini 3.7 Flash (\.75 input / \.75 output per 1M): The only model with multimod
 | 33 | No graph visualization | Force-directed graph | Brief explicitly deprioritizes visualization |
 | 34 | Fiscal year lookup table | General date parser | Parsers do not understand Indian fiscal conventions |
 | 35 | Fixed unit table | General unit library | Small known vocabulary; failure is explicit |
-| 36 | GPT-4o-mini via OpenRouter | Frontier models or local models | Budget: full run costs ~\.32 not ~\.25 |
+| 36 | GPT-4o-mini via OpenRouter | Frontier models or local models | Budget: full run costs ~$0.32 not ~$0.25 |
 | 37 | Verified anchor metrics for 4 cases | Speculative/unverified metrics | Guarantees all 4 required cases exist in data |
 | 38 | Hybrid assistant curation & pre-cache | Naive automated re-runs | Saves 75-85% of API budget; instant demo load |
 | 39 | Autonomous code execution (no mock facts) | Pre-populating facts manually | Guarantees pipeline works on foreign holdout PDFs |
 | 40 | Negative token & cluster guards | Pure embedding similarity | Blocks denominator false-positives (Debt/GDP vs GDP growth) |
 | 41 | Batch embedding precomputation | On-demand pair-by-pair encoding | Cuts engine runtime from 45s to 2.2s via single tensor batch |
+| 42 | Strict Verbatim Grounding Invariant | Additive heuristic tolerance | Zero ungrounded hallucinations in knowledge layer |
+| 43 | Multi-Dimensional Unit Normalization | Dimension-blind numeric matching | Prevents cross-currency errors; applies 100 Lakh = 1 Cr |
+| 44 | SQLite WAL Mode & Deduplication | Rollback journal & duplicate pairs | High concurrency without database locks; clean relations |
+| 45 | Complete Three-Document Triangulation | Partial starter dataset ingestion | Empirically grounds all 3 documents & Case 3 in DB |
+

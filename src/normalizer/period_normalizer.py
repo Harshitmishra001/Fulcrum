@@ -28,18 +28,34 @@ class PeriodNormalizer:
          lambda m: f"CY20{m.group(1)[-2:]}-Q{m.group(2)}"),
     ]
 
+    @staticmethod
+    def _format_split_fy(m) -> Optional[str]:
+        y1 = int(m.group(1))
+        y2 = int(m.group(2))
+        # Ensure it's a valid split year (e.g. 24-25 or 2024-25 or 1997-98)
+        # and NOT a calendar date like 2024-03
+        if y2 == (y1 + 1) % 100 or y2 == y1 + 1:
+            cent = "19" if 70 <= y2 <= 99 else "20"
+            return f"FY{cent}{y2 % 100:02d}"
+        return None
+
     # Fiscal year patterns (split year and single year)
     FY_PATTERNS = [
-        (re.compile(r"FY\s*(?:20)?(\d{2})[-/](?:20)?(\d{2})", re.IGNORECASE), lambda m: f"FY20{m.group(2)}"),
-        (re.compile(r"20(\d{2})[-/](\d{2})", re.IGNORECASE), lambda m: f"FY20{m.group(2)}"),
-        (re.compile(r"FY\s*(\d{2})\b", re.IGNORECASE), lambda m: f"FY20{m.group(1)}"),
-        (re.compile(r"FY\s*20(\d{2})\b", re.IGNORECASE), lambda m: f"FY20{m.group(1)}"),
-        (re.compile(r"fiscal\s+year\s+(?:ended\s+.*?)?(?:20)?(\d{2,4})", re.IGNORECASE), lambda m: f"FY20{m.group(1)[-2:]}"),
+        (re.compile(r"\bFY\s*(?:20)?(\d{2})[-/](?:20)?(\d{2})\b", re.IGNORECASE),
+         lambda m: PeriodNormalizer._format_split_fy(m) or f"FY20{m.group(2)}"),
+        (re.compile(r"\b(?:20)?(\d{2})[-/](\d{2})\b", re.IGNORECASE),
+         lambda m: PeriodNormalizer._format_split_fy(m)),
+        (re.compile(r"\bFY\s*(\d{2})\b", re.IGNORECASE),
+         lambda m: f"FY20{m.group(1)}"),
+        (re.compile(r"\bFY\s*20(\d{2})\b", re.IGNORECASE),
+         lambda m: f"FY20{m.group(1)}"),
+        (re.compile(r"fiscal\s+year\s+(?:ended\s+.*?)?(?:20)?(\d{2,4})", re.IGNORECASE),
+         lambda m: f"FY20{m.group(1)[-2:]}"),
     ]
 
     # Calendar year patterns
     CY_PATTERNS = [
-        (re.compile(r"CY\s*(?:20)?(\d{2,4})", re.IGNORECASE), lambda m: f"CY20{m.group(1)[-2:]}"),
+        (re.compile(r"\bCY\s*(?:20)?(\d{2,4})\b", re.IGNORECASE), lambda m: f"CY20{m.group(1)[-2:]}"),
         (re.compile(r"calendar\s+year\s+(?:20)?(\d{2,4})", re.IGNORECASE), lambda m: f"CY20{m.group(1)[-2:]}"),
         (re.compile(r"\b(19\d{2}|20\d{2})\b"), lambda m: f"CY{m.group(1)}"),
     ]
@@ -55,47 +71,75 @@ class PeriodNormalizer:
 
         text = raw_text.strip()
 
+        # 0. Check ISO date pattern (e.g., 2024-03-31, 2023-12-31, 31-03-2024)
+        iso_match = re.search(r"\b(19\d{2}|20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b", text)
+        if iso_match:
+            year = iso_match.group(1)
+            month = int(iso_match.group(2))
+            quarter = (month - 1) // 3 + 1
+            if "fy" in text.lower() or "fiscal" in text.lower():
+                fy_year = year if month <= 3 else str(int(year) + 1)
+                fy_q = 4 if month <= 3 else ((month - 4) // 3 + 1)
+                return {
+                    "raw_text": text,
+                    "period_type": "fiscal_quarter",
+                    "normalized": f"FY{fy_year}-Q{fy_q}"
+                }
+            return {
+                "raw_text": text,
+                "period_type": "calendar_quarter",
+                "normalized": f"CY{year}-Q{quarter}"
+            }
+
         # 1. Check Fiscal Quarter patterns first
         for pattern, formatter in cls.FISCAL_QUARTER_PATTERNS:
             match = pattern.search(text)
             if match:
-                return {
-                    "raw_text": text,
-                    "period_type": "fiscal_quarter",
-                    "normalized": formatter(match)
-                }
+                res = formatter(match)
+                if res:
+                    return {
+                        "raw_text": text,
+                        "period_type": "fiscal_quarter",
+                        "normalized": res
+                    }
 
         # 2. Check Calendar Quarter patterns (only if no explicit FY cue)
         if "fy" not in text.lower() and "fiscal" not in text.lower():
             for pattern, formatter in cls.CALENDAR_QUARTER_PATTERNS:
                 match = pattern.search(text)
                 if match:
-                    return {
-                        "raw_text": text,
-                        "period_type": "calendar_quarter",
-                        "normalized": formatter(match)
-                    }
+                    res = formatter(match)
+                    if res:
+                        return {
+                            "raw_text": text,
+                            "period_type": "calendar_quarter",
+                            "normalized": res
+                        }
 
         # 3. Check Fiscal Year patterns
         for pattern, formatter in cls.FY_PATTERNS:
             match = pattern.search(text)
             if match:
-                return {
-                    "raw_text": text,
-                    "period_type": "fiscal_year",
-                    "normalized": formatter(match)
-                }
+                res = formatter(match)
+                if res:
+                    return {
+                        "raw_text": text,
+                        "period_type": "fiscal_year",
+                        "normalized": res
+                    }
 
         # 4. Check Calendar Year patterns (only if no FY or range cues)
-        if "fy" not in text.lower() and "fiscal" not in text.lower() and "-" not in text and "/" not in text:
+        if "fy" not in text.lower() and "fiscal" not in text.lower() and not re.search(r"\b\d{2,4}[-/]\d{2,4}\b", text):
             for pattern, formatter in cls.CY_PATTERNS:
                 match = pattern.search(text)
                 if match:
-                    return {
-                        "raw_text": text,
-                        "period_type": "calendar_year",
-                        "normalized": formatter(match)
-                    }
+                    res = formatter(match)
+                    if res:
+                        return {
+                            "raw_text": text,
+                            "period_type": "calendar_year",
+                            "normalized": res
+                        }
 
         return {
             "raw_text": text,
