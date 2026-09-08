@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Fulcrum - Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,200..900;1,7..72,200..900&amp;family=Inter:wght@300;400;500;600;700&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "on-surface-variant": "#5f5f61",
+              "secondary": "#5e5f65",
+              "on-error-container": "#752121",
+              "surface-container-high": "#eae7ea",
+              "primary-dim": "#4e5260",
+              "surface-container-lowest": "#ffffff",
+              "on-secondary-fixed-variant": "#5a5b61",
+              "surface-container": "#f0edef",
+              "on-tertiary-fixed-variant": "#5b5672",
+              "tertiary-dim": "#54506b",
+              "on-secondary-fixed": "#3e3f45",
+              "inverse-surface": "#0e0e0f",
+              "error-dim": "#4e0309",
+              "inverse-on-surface": "#9e9c9d",
+              "inverse-primary": "#eaedfe",
+              "surface-tint": "#5a5e6c",
+              "surface": "#fcf8f9",
+              "primary-fixed-dim": "#d0d4e4",
+              "primary-fixed": "#dfe2f2",
+              "secondary-dim": "#525359",
+              "tertiary": "#605c78",
+              "error-container": "#fe8983",
+              "on-surface": "#323235",
+              "outline-variant": "#b3b1b4",
+              "on-tertiary-fixed": "#3e3a54",
+              "surface-variant": "#e4e2e5",
+              "tertiary-fixed-dim": "#d4cdee",
+              "surface-bright": "#fcf8f9",
+              "outline": "#7b7a7d",
+              "on-secondary-container": "#505157",
+              "on-primary": "#f7f7ff",
+              "error": "#9f403d",
+              "secondary-fixed-dim": "#d4d4db",
+              "on-secondary": "#f9f8ff",
+              "on-primary-fixed": "#3b3f4c",
+              "on-tertiary-container": "#514d68",
+              "secondary-fixed": "#e2e2e9",
+              "surface-container-highest": "#e4e2e5",
+              "secondary-container": "#e2e2e9",
+              "surface-dim": "#dbd9dd",
+              "primary-container": "#dfe2f2",
+              "on-primary-fixed-variant": "#575b69",
+              "tertiary-container": "#e3dbfd",
+              "background": "#fcf8f9",
+              "on-error": "#fff7f6",
+              "on-background": "#323235",
+              "surface-container-low": "#f6f3f4",
+              "primary": "#5a5e6c",
+              "on-primary-container": "#4d515f",
+              "tertiary-fixed": "#e3dbfd",
+              "on-tertiary": "#fcf7ff"
+            },
+            "borderRadius": {
+              "DEFAULT": "0.125rem",
+              "lg": "0.25rem",
+              "xl": "0.5rem",
+              "full": "0.75rem"
+            },
+            "fontFamily": {
+              "headline": ["Literata"],
+              "display": ["Literata"],
+              "body": ["Inter"],
+              "label": ["Public Sans"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+      .border-border { border-color: #E2E8F0; } /* Fallback/explicit border color as requested */
+      .bg-slate-50 { background-color: #F8FAFC; }
+      .text-slate-900 { color: #0F172A; }
+      .text-green-500 { color: #10B981; }
+      .bg-green-50 { background-color: #ECFDF5; }
+      .border-green-200 { border-color: #A7F3D0; }
+      .text-red-500 { color: #EF4444; }
+      .bg-red-50 { background-color: #FEF2F2; }
+      .border-red-200 { border-color: #FECACA; }
+      .text-blue-500 { color: #3B82F6; }
+      .bg-blue-50 { background-color: #EFF6FF; }
+      .border-blue-200 { border-color: #BFDBFE; }
+      
+      /* Base utilitarian reset */
+      body {
+        background-color: #ffffff;
+        color: #0F172A;
+        font-family: 'Inter', sans-serif;
+      }
+      
+      /* Explicit grid borders for multi-pane */
+      .pane-border {
+        border: 1px solid #E2E8F0;
+      }
+    </style>
+</head>
+<body class="bg-surface-container-lowest h-screen overflow-hidden flex flex-col">
+<!-- TopNavBar -->
+<header class="bg-surface text-primary font-display text-on-surface docked full-width top-0 border-b border-outline-variant flat no shadows flex justify-between items-center w-full px-6 py-3 h-16 shrink-0 z-10 relative">
+<div class="flex items-center gap-4">
+<span class="font-display text-2xl font-semibold text-on-surface tracking-tight">Fulcrum</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 text-sm font-label text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+<span>System Health: 99.8%</span>
+</div>
+<div class="flex gap-2">
+<button aria-label="check_circle" class="p-2 rounded-full hover:bg-surface-container transition-colors cursor-pointer active:opacity-80 text-on-surface-variant">
+<span class="material-symbols-outlined">check_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Layout Shell -->
+<div class="flex flex-1 overflow-hidden relative">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-low text-primary font-label text-sm uppercase tracking-wider fixed left-0 top-16 bottom-0 w-64 border-r border-outline-variant flat no shadows flex flex-col h-full py-6 px-4 gap-4 z-10 md:flex hidden flex-shrink-0 relative">
+<div class="mb-6 px-2">
+<h2 class="font-display font-bold text-on-surface text-lg">Fulcrum Research</h2>
+<p class="text-xs text-on-surface-variant mt-1 normal-case">Verified Environment</p>
+</div>
+<div class="flex flex-col gap-1 flex-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded bg-secondary-container text-on-secondary-container font-bold hover:bg-surface-container-high transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">analytics</span>
+                    Workspace
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant hover:bg-surface-container-high transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined text-lg">upload_file</span>
+                    Ingestion
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant hover:bg-surface-container-high transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined text-lg">emergency_home</span>
+                    Quarantine
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant hover:bg-surface-container-high transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined text-lg">inventory_2</span>
+                    Archive
+                </a>
+</div>
+<div class="mt-auto pt-4">
+<button class="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-2 px-4 rounded font-label text-sm font-semibold hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-sm">add</span>
+                    Upload Document
+                </button>
+</div>
+</nav>
+<!-- Main Workspace Area -->
+<main class="flex-1 flex overflow-hidden bg-slate-50">
+<!-- Ingestion Panel (Left) -->
+<aside class="w-[300px] flex-shrink-0 bg-white border-r border-border flex flex-col overflow-y-auto">
+<div class="p-4 border-b border-border bg-slate-50">
+<h3 class="font-headline font-semibold text-sm text-slate-900 uppercase tracking-wide">Active Ingestion</h3>
+</div>
+<div class="p-4">
+<div class="border border-border p-3 rounded-DEFAULT bg-white">
+<div class="flex justify-between items-start mb-2">
+<span class="font-body text-xs font-semibold text-slate-900 break-words pr-2">Global_Trade_Index_2024.pdf</span>
+<span class="material-symbols-outlined text-blue-500 text-sm">picture_as_pdf</span>
+</div>
+<div class="flex justify-between items-end mb-1">
+<span class="text-[10px] text-on-surface-variant uppercase font-label">Processing</span>
+<span class="text-xs font-semibold text-blue-500">74%</span>
+</div>
+<div class="w-full bg-surface-variant h-1.5 rounded-full overflow-hidden mb-4">
+<div class="bg-blue-500 h-full" style="width: 74%"></div>
+</div>
+<div class="space-y-3 relative before:absolute before:inset-0 before:ml-1.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-outline-variant before:to-transparent">
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+<div class="flex items-center justify-center w-4 h-4 rounded-full border border-green-500 bg-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+<span class="material-symbols-outlined text-[10px] text-green-500">check</span>
+</div>
+<div class="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] text-xs font-body text-slate-900">
+                                    [Parsed]
+                                </div>
+</div>
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+<div class="flex items-center justify-center w-4 h-4 rounded-full border border-green-500 bg-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+<span class="material-symbols-outlined text-[10px] text-green-500">check</span>
+</div>
+<div class="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] text-xs font-body text-slate-900">
+                                    [Chunking]
+                                </div>
+</div>
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+<div class="flex items-center justify-center w-4 h-4 rounded-full border-2 border-blue-500 bg-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+<div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+</div>
+<div class="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] text-xs font-body font-semibold text-slate-900">
+                                    [Extracting Facts]
+                                </div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Center & Bottom Column -->
+<div class="flex-1 flex flex-col overflow-hidden">
+<!-- Investigation Feed (Center) -->
+<section class="flex-1 bg-white overflow-y-auto">
+<div class="sticky top-0 p-4 border-b border-border bg-slate-50 z-10 flex justify-between items-center">
+<h3 class="font-headline font-semibold text-sm text-slate-900 uppercase tracking-wide">Verification Feed</h3>
+<div class="flex gap-2">
+<button class="px-2 py-1 border border-border rounded text-xs font-label bg-white hover:bg-slate-50 flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">filter_list</span> Filter</button>
+</div>
+</div>
+<div class="p-6 space-y-6 max-w-4xl mx-auto">
+<!-- Pair 1: Contradiction -->
+<div class="border border-red-200 rounded-lg overflow-hidden bg-white">
+<div class="bg-red-50 border-b border-red-200 px-4 py-2 flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-red-500 text-sm">warning</span>
+<span class="font-label text-xs font-bold text-red-500 uppercase tracking-wider">Contradiction</span>
+</div>
+<span class="text-xs text-on-surface-variant font-mono">ID: VFP-982</span>
+</div>
+<div class="grid grid-cols-2 divide-x divide-border">
+<div class="p-4">
+<div class="mb-3">
+<span class="text-[10px] text-on-surface-variant uppercase font-label block mb-1">Fact A</span>
+<div class="font-body text-sm text-slate-900">Entity: <span class="font-semibold">GDP</span> | Attr: <span class="font-semibold">Growth</span> | Value: <span class="font-semibold bg-red-100 text-red-700 px-1">3.2</span> | Units: <span class="font-semibold">%</span></div>
+</div>
+<div class="bg-slate-50 border border-border p-3 text-xs font-body text-on-surface rounded">
+<div class="text-[10px] font-label text-on-surface-variant mb-1 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">format_quote</span> Evidence Grounding</div>
+<p>"...the global macroeconomic outlook suggests that <mark class="bg-yellow-200 px-0.5">GDP growth will stabilize at 3.2%</mark> in the coming fiscal year..."</p>
+<div class="mt-2 text-[10px] text-on-surface-variant font-mono text-right">Source: G-TI-24, p. 12</div>
+</div>
+</div>
+<div class="p-4">
+<div class="mb-3">
+<span class="text-[10px] text-on-surface-variant uppercase font-label block mb-1">Fact B</span>
+<div class="font-body text-sm text-slate-900">Entity: <span class="font-semibold">GDP</span> | Attr: <span class="font-semibold">Growth</span> | Value: <span class="font-semibold bg-red-100 text-red-700 px-1">2.1</span> | Units: <span class="font-semibold">%</span></div>
+</div>
+<div class="bg-slate-50 border border-border p-3 text-xs font-body text-on-surface rounded">
+<div class="text-[10px] font-label text-on-surface-variant mb-1 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">format_quote</span> Evidence Grounding</div>
+<p>"...contrary to optimistic projections, our revised model indicates a more conservative <mark class="bg-yellow-200 px-0.5">GDP growth of 2.1%</mark>."</p>
+<div class="mt-2 text-[10px] text-on-surface-variant font-mono text-right">Source: Q3_Projections, p. 4</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Pair 2: Corroboration -->
+<div class="border border-green-200 rounded-lg overflow-hidden bg-white opacity-80">
+<div class="bg-green-50 border-b border-green-200 px-4 py-2 flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-green-500 text-sm">verified</span>
+<span class="font-label text-xs font-bold text-green-500 uppercase tracking-wider">Corroboration</span>
+</div>
+<span class="text-xs text-on-surface-variant font-mono">ID: VFP-983</span>
+</div>
+<div class="grid grid-cols-2 divide-x divide-border">
+<div class="p-4">
+<div class="mb-1">
+<span class="text-[10px] text-on-surface-variant uppercase font-label block mb-1">Fact A</span>
+<div class="font-body text-sm text-slate-900">Entity: <span class="font-semibold">Inflation</span> | Value: <span class="font-semibold text-green-700">4.5</span></div>
+</div>
+</div>
+<div class="p-4">
+<div class="mb-1">
+<span class="text-[10px] text-on-surface-variant uppercase font-label block mb-1">Fact B</span>
+<div class="font-body text-sm text-slate-900">Value: <span class="font-semibold text-green-700">4.5</span></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Pair 3: Reconciled -->
+<div class="border border-blue-200 rounded-lg overflow-hidden bg-white">
+<div class="bg-blue-50 border-b border-blue-200 px-4 py-2 flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-500 text-sm">handshake</span>
+<span class="font-label text-xs font-bold text-blue-500 uppercase tracking-wider">Reconciled</span>
+</div>
+<span class="text-xs text-on-surface-variant font-mono">ID: VFP-984</span>
+</div>
+<div class="p-4 border-b border-border">
+<div class="flex justify-between items-center bg-blue-50/50 p-2 rounded text-xs font-body text-slate-900 border border-blue-100 mb-3">
+<div class="flex items-center gap-2"><span class="material-symbols-outlined text-blue-500 text-[14px]">info</span> Context:</div>
+<span class="text-on-surface-variant italic">Unit conversion applied automatically (Tonnes -&gt; Megatonnes)</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<span class="text-[10px] text-on-surface-variant uppercase font-label block mb-1">Fact A</span>
+<div class="font-body text-sm text-slate-900">Entity: <span class="font-semibold">Energy Export</span> | Value: <span class="font-semibold">1,200,000</span> | Units: <span class="font-semibold">Tonnes</span></div>
+</div>
+<div>
+<span class="text-[10px] text-on-surface-variant uppercase font-label block mb-1">Fact B</span>
+<div class="font-body text-sm text-slate-900">Entity: <span class="font-semibold">Energy Export</span> | Value: <span class="font-semibold">1.2</span> | Units: <span class="font-semibold">MT</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Quarantine Section (Bottom) -->
+<section class="h-1/3 min-h-[250px] border-t border-border bg-white flex flex-col overflow-hidden shrink-0">
+<div class="p-3 border-b border-border bg-slate-50 flex justify-between items-center">
+<h3 class="font-headline font-semibold text-sm text-slate-900 uppercase tracking-wide flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-red-500">bug_report</span>
+                            Malformed Tables Quarantined
+                        </h3>
+<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded">3 Items</span>
+</div>
+<div class="flex-1 overflow-auto">
+<table class="w-full text-left border-collapse font-body text-xs text-slate-900">
+<thead class="sticky top-0 bg-white border-b border-border z-10 shadow-[0_1px_0_0_#E2E8F0]">
+<tr>
+<th class="py-2 px-4 font-semibold font-label text-on-surface-variant uppercase text-[10px] tracking-wider">Document Name</th>
+<th class="py-2 px-4 font-semibold font-label text-on-surface-variant uppercase text-[10px] tracking-wider">Page</th>
+<th class="py-2 px-4 font-semibold font-label text-on-surface-variant uppercase text-[10px] tracking-wider">Reason</th>
+<th class="py-2 px-4 font-semibold font-label text-on-surface-variant uppercase text-[10px] tracking-wider text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border">
+<tr class="hover:bg-slate-50">
+<td class="py-2 px-4 font-mono text-[10px]">Q4_Financials_Draft.pdf</td>
+<td class="py-2 px-4">42</td>
+<td class="py-2 px-4"><span class="bg-surface-variant px-1.5 py-0.5 rounded">Inconsistent Row Spans</span></td>
+<td class="py-2 px-4 text-right">
+<button class="text-blue-500 hover:underline font-medium">Review</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50">
+<td class="py-2 px-4 font-mono text-[10px]">Supply_Chain_Audit.docx</td>
+<td class="py-2 px-4">12</td>
+<td class="py-2 px-4"><span class="bg-surface-variant px-1.5 py-0.5 rounded">Missing Header Row</span></td>
+<td class="py-2 px-4 text-right">
+<button class="text-blue-500 hover:underline font-medium">Review</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50">
+<td class="py-2 px-4 font-mono text-[10px]">Global_Trade_Index_2024.pdf</td>
+<td class="py-2 px-4">118</td>
+<td class="py-2 px-4"><span class="bg-surface-variant px-1.5 py-0.5 rounded">Nested Table Overflow</span></td>
+<td class="py-2 px-4 text-right">
+<button class="text-blue-500 hover:underline font-medium">Review</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body></html>

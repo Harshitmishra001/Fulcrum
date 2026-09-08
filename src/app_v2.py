@@ -76,7 +76,12 @@ def get_facts():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("SELECT * FROM facts WHERE is_active = 1")
+    cur.execute("""
+        SELECT f.*, c.text as chunk_text 
+        FROM facts f 
+        LEFT JOIN chunks c ON f.chunk_id = c.chunk_id 
+        WHERE f.is_active = 1
+    """)
     facts = [dict(r) for r in cur.fetchall()]
     for f in facts:
         if "evidence_type" not in f or not f["evidence_type"]:

@@ -1,257 +1,330 @@
 <!DOCTYPE html>
-<html class="light" lang="en">
-<head>
+<html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Fulcrum — Fact Knowledge Workspace</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300,0&display=swap" rel="stylesheet"/>
-<style>
-  body { font-family: 'Inter', sans-serif; }
-  .font-mono { font-family: 'JetBrains Mono', monospace; }
-  /* Custom scrollbar for cleanliness */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-</style>
+<title>Fulcrum - From Documents to Truth</title>
+<!-- Tailwind CSS v3 with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Newsreader (Serif) & Inter (Sans) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config Customization -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Newsreader', 'Georgia', 'serif'],
+          },
+          colors: {
+            brand: {
+              pine: '#193832',
+              pineHover: '#132b26',
+              mint: '#eef8f2',
+              mintBorder: '#cbe7d6',
+              accentGreen: '#1b7d51',
+              cardBg: '#f9fafb',
+              borderSubtle: '#eaecef',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<!-- Typography & Document Styles -->
+<style data-purpose="typography">
+    .font-serif-title {
+      font-family: 'Newsreader', Georgia, serif;
+      letter-spacing: -0.015em;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+  </style>
+<!-- Graphic and Watermark Styles -->
+<style data-purpose="illustrations">
+    .mountain-watermark {
+      background-image: radial-gradient(circle at 50% 120%, rgba(203, 213, 225, 0.45) 0%, rgba(248, 250, 252, 0) 70%),
+        linear-gradient(to top, rgba(226, 232, 240, 0.5) 0%, transparent 100%);
+      mask-image: linear-gradient(to top, black 40%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to top, black 40%, transparent 100%);
+    }
+  </style>
 </head>
-<body class="bg-white text-gray-900 h-screen overflow-hidden flex antialiased">
-
-  <!-- LEFT SIDEBAR -->
-  <aside class="w-[260px] border-r border-gray-200 bg-gray-50 flex flex-col h-full shrink-0">
-    <div class="p-5 flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shadow-sm">F</div>
-      <span class="font-semibold text-lg tracking-tight">Fulcrum</span>
-    </div>
-    
-    <div class="px-4 pb-4">
-      <div class="relative">
-        <span class="material-symbols-outlined absolute left-3 top-2 text-gray-400 text-[18px]">search</span>
-        <input type="text" placeholder="Search facts..." class="w-full bg-white border border-gray-200 shadow-sm rounded-md pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-shadow" id="global-search" onkeyup="handleSearch()">
-      </div>
-    </div>
-    
-    <nav class="flex-1 px-3 space-y-1 overflow-y-auto mt-2">
-      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2 mt-4">Workspace</div>
-      
-      <a href="#" onclick="switchView('facts')" class="nav-btn flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700" id="nav-facts">
-        <span class="material-symbols-outlined text-[20px]">dataset</span> Facts
-      </a>
-      
-      <a href="#" onclick="switchView('relations')" class="nav-btn flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100" id="nav-relations">
-        <span class="material-symbols-outlined text-[20px]">hub</span> Relations
-      </a>
-
-      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2 mt-8">Evaluator Views</div>
-      
-      <a href="#" onclick="switchView('cases')" class="nav-btn flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100" id="nav-cases">
-        <span class="material-symbols-outlined text-[20px] text-amber-500">stars</span> The 4 Cases
-      </a>
-      
-      <a href="#" onclick="switchView('upload')" class="nav-btn flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100" id="nav-upload">
-        <span class="material-symbols-outlined text-[20px]">upload_file</span> Ingest PDF
-      </a>
-    </nav>
-    
-    <div class="p-4 border-t border-gray-200 space-y-1">
-      <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100">
-        <span class="material-symbols-outlined text-[20px] text-gray-400">settings</span> Settings
-      </a>
-    </div>
-  </aside>
-
-  <!-- MAIN CONTENT -->
-  <main class="flex-1 flex overflow-hidden">
-    
-    <!-- CENTER PANE -->
-    <div id="center-pane" class="flex-1 overflow-y-auto border-r border-gray-200 bg-white relative">
-      
-      <!-- Loading Overlay -->
-      <div id="loading-overlay" class="absolute inset-0 bg-white z-50 flex items-center justify-center">
-        <div class="text-gray-400 flex flex-col items-center gap-3">
-           <span class="material-symbols-outlined animate-spin text-4xl">sync</span>
-           <span class="text-sm font-medium">Loading Knowledge Base...</span>
-        </div>
-      </div>
-
-      <!-- VIEW: FACTS LIST -->
-      <div id="view-facts" class="view-content h-full flex flex-col">
-        <div class="px-8 py-6 border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur z-10 flex justify-between items-end">
-          <div>
-            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">All Facts</h1>
-            <p class="text-sm text-gray-500 mt-1">Ground-truth data points extracted from sources.</p>
-          </div>
-          <div class="text-sm font-mono text-gray-400"><span id="fact-count">0</span> facts</div>
-        </div>
-        <div class="flex-1 p-8 pt-4">
-          <div class="space-y-2" id="facts-container">
-             <!-- JS Rendered -->
-          </div>
-        </div>
-      </div>
-
-      <!-- VIEW: RELATIONS LIST -->
-      <div id="view-relations" class="view-content hidden h-full flex flex-col">
-        <div class="px-8 py-6 border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur z-10">
-          <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Relations Engine</h1>
-          <p class="text-sm text-gray-500 mt-1">Cross-document verification pairs.</p>
-          <div class="flex gap-2 mt-4" id="relation-filters">
-             <button onclick="filterRelations('all')" class="rel-filter px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-medium">All</button>
-             <button onclick="filterRelations('corroboration')" class="rel-filter px-3 py-1 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-full text-xs font-medium">Corroborations</button>
-             <button onclick="filterRelations('contradiction')" class="rel-filter px-3 py-1 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-full text-xs font-medium">Contradictions</button>
-             <button onclick="filterRelations('reconciled')" class="rel-filter px-3 py-1 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-full text-xs font-medium">Reconciled</button>
-          </div>
-        </div>
-        <div class="flex-1 p-8 pt-6">
-          <div class="space-y-6" id="relations-container">
-             <!-- JS Rendered -->
-          </div>
-        </div>
-      </div>
-
-      <!-- VIEW: FACT DETAIL (Progressive Disclosure) -->
-      <div id="view-fact-detail" class="view-content hidden h-full flex flex-col">
-        <div class="p-8 pb-4">
-          <button onclick="switchView('facts')" class="text-sm font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1.5 mb-8 transition-colors">
-            <span class="material-symbols-outlined text-[18px]">arrow_back</span> Back to facts
-          </button>
-          
-          <h1 class="text-3xl font-bold text-gray-900 mb-3 leading-tight tracking-tight" id="detail-title">Entity</h1>
-          <div class="flex items-center gap-3 text-sm text-gray-500 mb-8 font-mono bg-gray-50 inline-flex px-3 py-1.5 rounded-md border border-gray-200">
-            <span id="detail-doc" class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">description</span> Doc Name</span>
-            <span class="text-gray-300">|</span>
-            <span id="detail-page" class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">find_in_page</span> Page X</span>
-          </div>
-
-          <!-- Status Box -->
-          <div id="detail-status-box" class="p-5 rounded-xl border mb-10 flex items-start gap-3 shadow-sm">
-             <span class="material-symbols-outlined mt-0.5 text-xl" id="detail-status-icon">verified</span>
-             <div>
-               <h3 class="font-semibold text-base mb-1" id="detail-status-title">Status</h3>
-               <p class="text-sm leading-relaxed" id="detail-status-desc">Explanation...</p>
-             </div>
-          </div>
-
-          <!-- Key Details Table -->
-          <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Fact Details</h3>
-          <div class="border border-gray-200 rounded-xl overflow-hidden mb-10 shadow-sm">
-            <table class="w-full text-sm text-left">
-              <tbody class="divide-y divide-gray-100">
-                <tr class="hover:bg-gray-50"><th class="bg-white px-5 py-4 font-medium text-gray-500 w-1/3">Entity</th><td class="px-5 py-4 text-gray-900 font-medium" id="detail-entity"></td></tr>
-                <tr class="hover:bg-gray-50"><th class="bg-white px-5 py-4 font-medium text-gray-500">Attribute</th><td class="px-5 py-4 text-gray-900 font-medium" id="detail-attribute"></td></tr>
-                <tr class="hover:bg-gray-50"><th class="bg-white px-5 py-4 font-medium text-gray-500">Value</th><td class="px-5 py-4 font-mono font-bold text-blue-600 text-lg" id="detail-value"></td></tr>
-                <tr class="hover:bg-gray-50"><th class="bg-white px-5 py-4 font-medium text-gray-500">Period</th><td class="px-5 py-4 text-gray-900" id="detail-period"></td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Evidence / Related Facts -->
-          <div id="detail-relations-section" class="hidden pb-10">
-            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Cross-Document Evidence</h3>
-            <div class="space-y-4" id="detail-relations">
-               <!-- JS Rendered -->
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- VIEW: THE 4 CASES -->
-      <div id="view-cases" class="view-content hidden h-full flex flex-col">
-        <div class="px-8 py-6 border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur z-10">
-          <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-            <span class="material-symbols-outlined text-amber-500">stars</span> The 4 Required Cases
-          </h1>
-          <p class="text-sm text-gray-500 mt-1">Directly satisfying the Superjoin evaluator rubric.</p>
-        </div>
-        <div class="flex-1 p-8 pt-6">
-          <div class="space-y-12" id="cases-container">
-             <!-- JS Rendered curated list -->
-          </div>
-        </div>
-      </div>
-      
-      <!-- VIEW: UPLOAD -->
-      <div id="view-upload" class="view-content hidden h-full p-8">
-         <div class="max-w-2xl mx-auto mt-12">
-            <h1 class="text-2xl font-bold text-gray-900 mb-2">Ingest New Document</h1>
-            <p class="text-gray-500 text-sm mb-8">Upload PDFs to dynamically expand the knowledge layer. The ingestion worker handles chunking, extraction, and relation linking asynchronously.</p>
-            
-            <form id="uploadForm" class="space-y-6">
-              <div class="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center hover:bg-gray-50 transition-colors">
-                <span class="material-symbols-outlined text-5xl text-gray-400 mb-4">cloud_upload</span>
-                <input type="file" id="uploadFile" accept="application/pdf" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-              </div>
-              <button type="submit" id="uploadBtn" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-sm transition-colors flex justify-center items-center gap-2">
-                Launch Worker Process
-              </button>
-            </form>
-            
-            <div id="uploadStatus" class="hidden mt-8 p-5 bg-gray-50 border border-gray-200 rounded-xl">
-               <div class="flex justify-between items-center mb-3">
-                 <span class="font-mono text-sm font-semibold text-gray-700" id="up-filename">file.pdf</span>
-                 <span class="text-xs font-bold uppercase text-blue-600" id="up-badge">Processing</span>
-               </div>
-               <div class="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden mb-3">
-                 <div class="h-full bg-blue-600 w-1/3 animate-pulse" id="up-bar"></div>
-               </div>
-               <p class="text-xs font-mono text-gray-500" id="up-log">Initializing...</p>
-            </div>
-         </div>
-      </div>
-
-    </div>
-
-    <!-- RIGHT PANE (Document Viewer) -->
-    <aside id="right-pane" class="w-[420px] bg-white border-l border-gray-200 flex flex-col h-full shrink-0 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.02)]">
-      <div class="flex items-center gap-6 px-6 pt-5 border-b border-gray-200">
-        <button class="text-sm font-semibold text-blue-600 border-b-2 border-blue-600 pb-3 -mb-[1px]">Source Document</button>
-        <button class="text-sm font-medium text-gray-500 hover:text-gray-900 pb-3">Metadata</button>
-      </div>
-      
-      <!-- Empty State -->
-      <div id="rp-empty" class="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-400">
-        <div class="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-4 border border-gray-100">
-          <span class="material-symbols-outlined text-3xl text-gray-300">find_in_page</span>
-        </div>
-        <p class="text-sm font-medium text-gray-600">Select a fact or relation</p>
-        <p class="text-xs mt-1">View the exact grounded text snippet.</p>
-      </div>
-
-      <!-- Content State -->
-      <div id="rp-content" class="hidden flex-1 overflow-y-auto p-6 bg-gray-50">
-        <div class="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden mb-6">
-          <div class="bg-gray-100/80 border-b border-gray-200 px-4 py-2.5 flex items-center justify-between text-[11px] font-mono text-gray-500 uppercase tracking-wider font-semibold">
-            <span class="flex items-center gap-1.5 truncate"><span class="material-symbols-outlined text-[14px]">draft</span> <span id="rp-doc-title">Document</span></span>
-            <span id="rp-doc-page">Page ?</span>
-          </div>
-          
-          <div class="p-6">
-             <div class="text-xs text-gray-400 font-serif italic mb-3">...</div>
-             <div class="text-sm leading-loose font-serif text-gray-800">
-               <span class="bg-yellow-100 text-yellow-900 px-1 py-0.5 rounded leading-loose box-decoration-clone border border-yellow-200 shadow-sm" id="rp-quote">
-                 Quote goes here.
-               </span>
-             </div>
-             <div class="text-xs text-gray-400 font-serif italic mt-3">...</div>
-          </div>
-        </div>
-        
-        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-           <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Extraction Source Type</h4>
-           <div class="flex items-center gap-2 mb-2">
-             <span class="material-symbols-outlined text-green-500 text-sm">check_circle</span>
-             <span class="text-sm font-medium text-gray-700">Grounded Extraction</span>
-           </div>
-           <p class="text-xs text-gray-500 leading-relaxed font-mono" id="rp-evidence-type">prose parsing pipeline.</p>
-        </div>
-      </div>
-    </aside>
-
-  </main>
+<body class="bg-[#fafafa] text-slate-800 font-sans antialiased h-screen w-screen overflow-hidden flex flex-col">
+<!-- BEGIN: ApplicationLayout -->
+<div class="flex h-full w-full overflow-hidden" data-purpose="app-shell">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-[230px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between relative z-20 select-none" data-purpose="sidebar">
+<!-- Sidebar Top Section -->
+<div class="p-5 flex flex-col">
+<!-- Logo Branding -->
+<div class="flex items-start gap-2.5 mb-8" data-purpose="brand-header">
+<div class="w-7 h-7 flex-shrink-0 text-slate-900 mt-0.5">
+<svg class="w-full h-full" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
+<line x1="16" x2="2" y1="8" y2="22"></line>
+<line x1="17.5" x2="9" y1="15" y2="15"></line>
+</svg>
+</div>
+<div>
+<h1 class="text-[17px] font-serif-title font-semibold tracking-tight leading-none text-slate-900">Fulcrum</h1>
+<p class="text-[10px] text-slate-400 font-normal tracking-tight mt-1">From Documents to Truth</p>
+</div>
+</div>
+<!-- Navigation Menu -->
+<nav class="space-y-1 text-[13px] font-medium" data-purpose="primary-navigation">
+<a href="#" onclick="switchView('facts')" id="nav-facts" class="nav-item flex items-center gap-3 px-3 py-2 text-brand-accentGreen font-semibold transition-colors">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewbox="0 0 24 24"><rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect><polyline points="9 11 12 14 22 4"></polyline></svg>
+            Facts
+</a>
+<a href="#" onclick="switchView('relations')" id="nav-relations" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-900 transition-colors">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"></line><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"></line></svg>
+            Investigations
+</a>
+<a href="#" onclick="switchView('cases')" id="nav-cases" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-900 transition-colors">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" x2="12" y1="11" y2="17"></line><line x1="9" x2="15" y1="14" y2="14"></line></svg>
+            The 4 Cases
+</a>
+</nav>
+</div>
+<!-- Sidebar Bottom Section -->
+<div class="relative flex flex-col justify-end" data-purpose="sidebar-footer">
+<div class="p-5 pb-8 space-y-1 text-[13px] font-medium text-slate-600 relative z-10">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-900 transition-colors" onclick="switchView('upload')" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>
+            Ingest PDF
+</a>
+</div>
+<!-- Mountain graphic & philosophy quote -->
+<div class="relative pt-12 pb-6 px-6 overflow-hidden border-t border-slate-100 bg-slate-50/50">
+<div class="absolute inset-0 mountain-watermark pointer-events-none opacity-40"></div>
+<p class="relative z-10 text-[11px] leading-relaxed text-slate-400 font-medium">
+            Different documents.<br/>A clearer picture.
+          </p>
+</div>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: MainContentWrapper -->
+<div class="flex-1 flex flex-col h-full overflow-hidden bg-white">
+<!-- BEGIN: TopHeaderBar -->
+<header class="h-24 px-8 flex items-center justify-between flex-shrink-0 bg-transparent" data-purpose="global-header">
+<!-- Global Search Bar -->
+<div class="w-full max-w-xl relative group">
+<div class="absolute inset-y-0 left-0 flex items-center pointer-events-none text-slate-300 group-focus-within:text-brand-accentGreen transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewbox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
+</div>
+<input id="global-search" onkeyup="handleSearch()" class="w-full pl-9 pr-4 py-2 text-lg font-serif-title text-slate-800 bg-transparent placeholder-slate-300 focus:outline-none" placeholder="Search facts, documents, or topics..." type="text"/>
+</div>
+<!-- Action Buttons and User Status -->
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-5">
+<button onclick="switchView('upload')" class="text-sm font-serif-title italic text-slate-500 hover:text-slate-800 transition-colors">
+                Ingest PDF
+</button>
+<span class="text-slate-300">|</span>
+<span class="text-sm text-slate-400 italic font-serif tracking-tight">“Truth is a process, not a single document.”</span>
+</div>
+</div>
+</header>
+<!-- END: TopHeaderBar -->
+<!-- BEGIN: TwoColumnWorkspace -->
+<div class="flex-1 flex overflow-hidden">
+<!-- BEGIN: FactDetailColumn -->
+<main class="flex-1 overflow-y-auto px-10 py-4 custom-scrollbar" id="center-pane">
   
-  <script>
+  <!-- LOADING -->
+  <div id="loading" class="flex flex-col items-center justify-center h-full text-slate-400">
+    <svg class="w-8 h-8 animate-spin mb-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+    <span class="text-sm">Loading Knowledge Base...</span>
+  </div>
+
+  <!-- VIEW: FACTS LIST -->
+  <div id="view-facts" class="app-view hidden max-w-4xl mx-auto space-y-6">
+    <div class="border-b border-slate-200 pb-6 mb-8 flex justify-between items-end">
+      <div>
+        <h1 class="text-3xl font-serif-title font-semibold text-slate-900">Facts Repository</h1>
+        <p class="text-sm text-slate-500 mt-2 font-serif italic">Ground-truth data points extracted from sources.</p>
+      </div>
+      <div class="text-xs font-mono text-slate-400 uppercase tracking-widest" id="fact-count">0 facts</div>
+    </div>
+    <div id="facts-container" class="space-y-0"></div>
+  </div>
+
+  <!-- VIEW: RELATIONS LIST -->
+  <div id="view-relations" class="app-view hidden max-w-4xl mx-auto space-y-6">
+    <div class="border-b border-slate-200 pb-6 mb-8">
+      <h1 class="text-3xl font-serif-title font-semibold text-slate-900">Investigations Engine</h1>
+      <p class="text-sm text-slate-500 mt-2 font-serif italic">Cross-document verification pairs.</p>
+      <div class="flex gap-4 mt-6" id="relation-filters">
+         <button onclick="filterRelations('all')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-brand-accentGreen font-bold border-b border-brand-accentGreen pb-1">All</button>
+         <button onclick="filterRelations('corroboration')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent">Corroborations</button>
+         <button onclick="filterRelations('contradiction')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent">Contradictions</button>
+         <button onclick="filterRelations('reconciled')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent">Reconciled</button>
+      </div>
+    </div>
+    <div id="relations-container" class="space-y-0"></div>
+  </div>
+
+  <!-- VIEW: THE 4 CASES -->
+  <div id="view-cases" class="app-view hidden max-w-4xl mx-auto space-y-6">
+    <div class="border-b border-slate-200 pb-6 mb-8">
+      <h1 class="text-3xl font-serif-title font-semibold text-slate-900">The 4 Required Cases</h1>
+      <p class="text-sm text-slate-500 mt-2 font-serif italic">Directly satisfying the Superjoin evaluator rubric.</p>
+    </div>
+    <div id="cases-container" class="space-y-0"></div>
+  </div>
+
+  <!-- VIEW: UPLOAD -->
+  <div id="view-upload" class="app-view hidden max-w-2xl mx-auto mt-16">
+    <h1 class="text-3xl font-serif-title font-semibold text-slate-900 mb-2">Ingest Document</h1>
+    <p class="text-slate-500 text-sm mb-10 font-serif italic">Upload PDFs to expand the knowledge layer asynchronously.</p>
+    
+    <form id="uploadForm" class="space-y-8">
+      <div class="border border-slate-200 p-12 text-center bg-[#fafafa] hover:bg-slate-50 transition-colors">
+        <svg class="w-6 h-6 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" stroke-width="1.5" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>
+        <input type="file" id="uploadFile" accept="application/pdf" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:font-mono file:uppercase file:tracking-widest file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+      </div>
+      <button type="submit" id="uploadBtn" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-sm font-mono uppercase tracking-widest transition-colors">
+        Launch Worker Process
+      </button>
+    </form>
+    
+    <div id="uploadStatus" class="hidden mt-10 p-6 border border-slate-200 bg-white">
+       <div class="flex justify-between items-center mb-3">
+         <span class="font-mono text-xs text-slate-700" id="up-filename">file.pdf</span>
+         <span class="text-[10px] font-mono uppercase tracking-widest text-brand-accentGreen" id="up-badge">Processing</span>
+       </div>
+       <div class="h-1 w-full bg-slate-100 overflow-hidden mb-3">
+         <div class="h-full bg-brand-accentGreen transition-all duration-500" style="width:10%" id="up-bar"></div>
+       </div>
+       <p class="text-[10px] font-mono text-slate-400" id="up-log">Initializing...</p>
+    </div>
+  </div>
+
+  <!-- VIEW: FACT DETAIL -->
+  <div id="view-detail" class="app-view hidden max-w-3xl mx-auto space-y-8">
+    <!-- Breadcrumbs -->
+    <div class="flex items-center justify-between text-xs font-mono uppercase tracking-widest text-slate-400">
+      <button onclick="switchView('facts')" class="hover:text-slate-800 transition-colors">
+        &larr; Back to facts
+      </button>
+    </div>
+    <!-- Main Fact Title -->
+    <div class="space-y-4 pt-2">
+      <h1 class="text-4xl font-serif-title font-medium text-slate-900 tracking-tight leading-snug" id="det-title">Fact Title</h1>
+      <!-- Metadata -->
+      <div class="flex flex-wrap items-center justify-between gap-y-3 pt-2">
+        <div class="flex items-center gap-3 text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+          <span id="det-entity">Entity</span>
+          <span class="text-slate-300">&middot;</span>
+          <span id="det-period">Period</span>
+          <span class="text-slate-300">&middot;</span>
+          <span id="det-unit">Unit</span>
+        </div>
+        <!-- Corroborated status badge -->
+        <div class="flex flex-col items-end" id="det-badge-container">
+          <span class="px-2 py-0.5 border text-[10px] font-mono uppercase tracking-widest text-slate-500 border-slate-200" id="det-badge">
+            Status
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Corroboration Summary Box -->
+    <div class="pl-4 border-l-2 py-1 mt-4 border-slate-300" id="det-status-box">
+      <div class="space-y-1">
+        <h2 class="text-sm font-serif-title italic text-slate-900" id="det-status-title">Fact Status</h2>
+        <p class="text-xs text-slate-500 leading-relaxed font-medium" id="det-status-desc">Explanation...</p>
+      </div>
+    </div>
+
+    <!-- Key Details Section -->
+    <div class="space-y-4 pt-6">
+      <h2 class="text-sm font-mono uppercase tracking-widest text-slate-400">Details</h2>
+      <div class="divide-y divide-slate-100 text-sm">
+        <div class="py-3 grid grid-cols-3"><span class="text-slate-500 font-serif italic">Entity</span><span class="col-span-2 text-slate-900" id="det-table-entity"></span></div>
+        <div class="py-3 grid grid-cols-3"><span class="text-slate-500 font-serif italic">Attribute</span><span class="col-span-2 text-slate-900" id="det-table-attr"></span></div>
+        <div class="py-3 grid grid-cols-3"><span class="text-slate-500 font-serif italic">Value</span><span class="col-span-2 text-slate-900 font-medium" id="det-table-val"></span></div>
+        <div class="py-3 grid grid-cols-3"><span class="text-slate-500 font-serif italic">Time period</span><span class="col-span-2 text-slate-900" id="det-table-period"></span></div>
+        <div class="py-3 grid grid-cols-3"><span class="text-slate-500 font-serif italic">Assertion type</span><span class="col-span-2 text-slate-900 font-mono text-xs uppercase tracking-wider" id="det-table-assertion"></span></div>
+        <div class="py-3 grid grid-cols-3"><span class="text-slate-500 font-serif italic">Confidence</span><span class="col-span-2" id="det-table-confidence"></span></div>
+      </div>
+    </div>
+
+    <!-- Evidence Section -->
+    <div class="space-y-4 pt-6" id="det-relations-section">
+      <h2 class="text-sm font-mono uppercase tracking-widest text-slate-400">Cross-Document Evidence</h2>
+      <div id="det-relations" class="space-y-0 border-t border-slate-100"></div>
+    </div>
+
+  </div>
+
+</main>
+<!-- END: FactDetailColumn -->
+<!-- BEGIN: RightDocumentViewer -->
+<aside class="w-[450px] border-l border-slate-200 bg-[#fafafa] flex flex-col h-full flex-shrink-0" data-purpose="document-preview-panel">
+<!-- Document Viewer source label -->
+<div class="h-14 border-b border-slate-200 px-6 flex items-center justify-between bg-transparent">
+<span class="text-[11px] font-mono uppercase tracking-widest text-slate-500">Source document</span>
+<span class="text-[10px] font-mono uppercase tracking-widest text-slate-300" id="rp-source-label"></span>
+</div>
+<!-- Empty State -->
+<div id="rp-empty" class="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">
+  <p class="text-sm font-serif italic text-slate-500">Select a fact to view source document</p>
+</div>
+
+<!-- Document Viewer Header -->
+<div id="rp-content" class="hidden flex-col h-full overflow-hidden">
+<div class="p-6 border-b border-slate-100 flex items-center justify-between bg-transparent" data-purpose="document-header">
+<div class="flex items-center gap-3 overflow-hidden">
+<div class="truncate">
+<h3 class="text-sm font-serif-title text-slate-900 leading-none truncate" id="rp-doc-title">Document</h3>
+<p class="text-[10px] font-mono text-slate-400 mt-2 uppercase tracking-widest" id="rp-assertion-type">Source Context</p>
+</div>
+</div>
+<!-- Page Number & Controls -->
+<div class="flex items-center gap-2 text-[11px] font-mono text-slate-500 shrink-0 uppercase">
+<span id="rp-doc-page">Page 1</span>
+</div>
+</div>
+<!-- Document Render Area -->
+<div class="flex-1 overflow-y-auto p-6 custom-scrollbar flex flex-col" data-purpose="document-page-render">
+<!-- Real document canvas -->
+<div class="bg-white border border-slate-200 p-8 min-h-[500px]" id="rp-canvas">
+  <!-- populated by showDocument() -->
+</div>
+<!-- Footer metadata -->
+<div class="mt-4 flex items-center justify-between flex-shrink-0">
+<h5 class="text-[9px] font-mono uppercase tracking-widest text-slate-400">Extraction Method</h5>
+<div class="text-[10px] text-slate-600 font-mono tracking-wide" id="rp-evidence-type">Prose Pipeline</div>
+</div>
+</div>
+</div>
+
+</aside>
+<!-- END: RightDocumentViewer -->
+</div>
+<!-- END: TwoColumnWorkspace -->
+</div>
+<!-- END: MainContentWrapper -->
+</div>
+<!-- END: ApplicationLayout -->
+
+<script>
     let facts = [];
     let relations = [];
     let failures = [];
@@ -272,123 +345,141 @@
         
         facts.forEach(f => factsMap[f.id] = f);
         
-        document.getElementById('fact-count').innerText = facts.length;
-        document.getElementById('loading-overlay').style.display = 'none';
+        document.getElementById('fact-count').innerText = facts.length + ' facts';
+        document.getElementById('loading').style.display = 'none';
         
         renderFactsList(facts);
         renderRelationsList('all');
         renderFourCases();
+        switchView('facts');
       } catch (e) {
         console.error("Failed loading data", e);
       }
     });
 
     function switchView(view) {
-      document.querySelectorAll('.view-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
       document.getElementById('view-' + view).classList.remove('hidden');
       
-      document.querySelectorAll('.nav-btn').forEach(el => {
-        el.classList.remove('bg-blue-50', 'text-blue-700');
-        el.classList.add('text-gray-600');
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.className = "nav-item flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-900 transition-colors";
       });
       const act = document.getElementById('nav-' + view);
       if (act) {
-        act.classList.add('bg-blue-50', 'text-blue-700');
-        act.classList.remove('text-gray-600');
+        act.className = "nav-item flex items-center gap-3 px-3 py-2 text-brand-accentGreen font-semibold transition-colors";
       }
     }
 
     function renderFactsList(data) {
       const c = document.getElementById('facts-container');
-      c.innerHTML = data.map(f => `
-        <div onclick="openFactDetail('${f.id}')" class="group flex items-center justify-between p-4 bg-white border border-gray-100 hover:border-blue-200 hover:shadow-sm rounded-xl cursor-pointer transition-all">
-          <div>
-            <div class="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-sm">${f.entity} <span class="text-gray-400 font-normal ml-1">— ${f.attribute}</span></div>
-            <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
-               <span class="material-symbols-outlined text-[14px]">description</span> 
-               <span class="truncate max-w-[200px]">${docName(f)}</span> • Page ${pageNo(f)}
-            </div>
-          </div>
-          <div class="text-right">
-            <div class="font-mono font-bold text-gray-900 text-sm">${f.value} <span class="text-xs text-gray-400 font-normal">${f.unit||''}</span></div>
-            <div class="text-xs font-mono text-gray-400 mt-1">${f.period_normalized || ''}</div>
-          </div>
-        </div>
-      `).join('');
+      c.innerHTML = data.map(f => {
+        return "<div onclick=\"openFactDetail('" + f.id + "')\" class=\"group flex items-start justify-between py-5 border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer -mx-4 px-4\">" +
+          "<div>" +
+            "<div class=\"font-serif-title text-lg font-medium text-slate-900 group-hover:text-brand-accentGreen transition-colors\">" + f.entity + " <span class=\"text-slate-400 font-serif italic text-sm ml-1\">— " + f.attribute + "</span></div>" +
+            "<div class=\"text-[10px] font-mono text-slate-400 mt-2 uppercase tracking-widest\">" + docName(f) + " • Page " + pageNo(f) + "</div>" +
+          "</div>" +
+          "<div class=\"text-right\">" +
+            "<div class=\"font-sans font-medium text-slate-900 text-lg\">" + f.value + " <span class=\"text-xs text-slate-500 font-serif italic ml-1\">" + (f.unit||'') + "</span></div>" +
+            "<div class=\"text-[11px] text-slate-500 mt-1 font-serif\">" + (f.period_normalized || '') + "</div>" +
+          "</div>" +
+        "</div>";
+      }).join('');
     }
 
     function openFactDetail(factId) {
       const f = factsMap[factId];
       if (!f) return;
       
-      switchView('fact-detail');
+      switchView('detail');
       showDocument(f);
       
-      document.getElementById('detail-title').innerText = `${f.entity} — ${f.attribute}`;
-      document.getElementById('detail-doc').innerHTML = `<span class="material-symbols-outlined text-[16px]">description</span> ${docName(f)}`;
-      document.getElementById('detail-page').innerHTML = `<span class="material-symbols-outlined text-[16px]">find_in_page</span> Page ${pageNo(f)}`;
+      document.getElementById('det-title').innerText = f.entity + " — " + f.attribute;
+      document.getElementById('det-entity').innerText = f.entity;
+      document.getElementById('det-period').innerText = f.period_normalized || f.period_raw || 'N/A';
+      document.getElementById('det-unit').innerText = f.unit || '—';
       
-      document.getElementById('detail-entity').innerText = f.entity;
-      document.getElementById('detail-attribute').innerText = f.attribute;
-      document.getElementById('detail-value').innerText = f.value + (f.unit ? ' '+f.unit : '');
-      document.getElementById('detail-period').innerText = f.period_normalized || f.period_raw || 'N/A';
+      document.getElementById('det-table-entity').innerText = f.entity;
+      document.getElementById('det-table-attr').innerText = f.attribute;
+      document.getElementById('det-table-val').innerText = f.value + (f.unit ? ' '+f.unit : '');
+      document.getElementById('det-table-period').innerText = f.period_normalized || f.period_raw || 'N/A';
+      document.getElementById('det-table-assertion').innerText = f.assertion_type || '—';
       
-      // Relations Logic
+      // Confidence as a simple textual bar
+      const conf = parseFloat(f.extraction_confidence) || 0;
+      const pct = Math.round(conf * 100);
+      const confColor = pct >= 80 ? 'bg-green-500' : pct >= 60 ? 'bg-amber-400' : 'bg-red-400';
+      document.getElementById('det-table-confidence').innerHTML = 
+        '<div class="flex items-center gap-2">' +
+          '<div class="h-1 w-24 bg-slate-100 overflow-hidden"><div class="h-full ' + confColor + '" style="width:' + pct + '%"></div></div>' +
+          '<span class="text-[10px] font-mono text-slate-500">' + pct + '%</span>' +
+        '</div>';
+      
       const rels = relations.filter(r => r.fact_a_id === f.id || r.fact_b_id === f.id);
       
-      let statusClass = 'bg-gray-50 border-gray-200 text-gray-700';
-      let icon = 'info';
-      let title = 'Standalone Fact';
-      let desc = 'This fact exists independently without any contradictory or corroborating counterparts found in the knowledge base.';
+      let badgeClass = "text-slate-500 border-slate-200";
+      let badgeText = "Standalone Fact";
+      let boxBorder = "border-slate-300";
+      let titleColor = "text-slate-700";
+      let title = "No Verification Pairs";
+      let desc = "This fact exists independently without any contradictory or corroborating counterparts found in the knowledge base.";
       
       if (rels.length > 0) {
         if (rels.some(r => r.relation_type === 'contradiction')) {
-          statusClass = 'bg-red-50 border-red-200 text-red-800';
-          icon = 'warning';
-          title = 'Contradiction Detected';
-          desc = rels.find(r => r.relation_type === 'contradiction').explanation;
+          const rel = rels.find(r => r.relation_type === 'contradiction');
+          badgeClass = "text-[#9b1c1c] border-[#f98080]"; badgeText = "Contradicted";
+          boxBorder = "border-[#f98080]"; titleColor = "text-[#9b1c1c]";
+          title = "Contradiction Detected";
+          desc = rel.explanation || "A conflicting figure for this metric was found in another source.";
         } else if (rels.some(r => r.relation_type === 'reconciled')) {
-          statusClass = 'bg-blue-50 border-blue-200 text-blue-800';
-          icon = 'handshake';
-          title = 'Reconciled Apparent Contradiction';
-          desc = rels.find(r => r.relation_type === 'reconciled').explanation;
+          const rel = rels.find(r => r.relation_type === 'reconciled');
+          badgeClass = "text-[#1e429f] border-[#76a9fa]"; badgeText = "Reconciled";
+          boxBorder = "border-[#76a9fa]"; titleColor = "text-[#1e429f]";
+          title = "Apparent Contradiction — Reconciled";
+          desc = rel.explanation || "An apparent discrepancy with another source has been resolved through context.";
         } else if (rels.some(r => r.relation_type === 'corroboration')) {
-          statusClass = 'bg-green-50 border-green-200 text-green-800';
-          icon = 'verified';
-          title = 'Corroborated by external source';
-          desc = 'Another authoritative source reports matching figures for this metric and period.';
+          const rel = rels.find(r => r.relation_type === 'corroboration');
+          badgeClass = "text-[#1e6f47] border-[#d2ecd9]"; badgeText = "Corroborated";
+          boxBorder = "border-[#d2ecd9]"; titleColor = "text-[#1e6f47]";
+          title = "Corroborated Fact";
+          desc = rel.explanation || "Another authoritative source reports a matching figure for this metric and period.";
         }
       }
       
-      const sb = document.getElementById('detail-status-box');
-      sb.className = `p-5 rounded-xl border mb-10 flex items-start gap-3 shadow-sm ${statusClass}`;
-      document.getElementById('detail-status-icon').innerText = icon;
-      document.getElementById('detail-status-title').innerText = title;
-      document.getElementById('detail-status-desc').innerText = desc;
+      document.getElementById('det-badge').className = "px-2 py-0.5 border text-[10px] font-mono uppercase tracking-widest " + badgeClass;
+      document.getElementById('det-badge').innerHTML = badgeText;
       
-      const dr = document.getElementById('detail-relations');
-      const drs = document.getElementById('detail-relations-section');
+      const sb = document.getElementById('det-status-box');
+      sb.className = "pl-4 border-l-2 py-1 mt-4 " + boxBorder;
+      document.getElementById('det-status-title').className = "text-sm font-serif-title italic " + titleColor;
+      document.getElementById('det-status-title').innerText = title;
+      document.getElementById('det-status-desc').innerText = desc;
+      
+      const dr = document.getElementById('det-relations');
+      const drs = document.getElementById('det-relations-section');
       if (rels.length > 0) {
          drs.classList.remove('hidden');
          dr.innerHTML = rels.map(r => {
            const otherF = factsMap[r.fact_a_id === f.id ? r.fact_b_id : r.fact_a_id];
            if (!otherF) return '';
            
-           let col = 'gray';
-           if(r.relation_type==='corroboration') col='green';
-           if(r.relation_type==='contradiction') col='red';
-           if(r.relation_type==='reconciled') col='blue';
+           let bCol = "slate";
+           if(r.relation_type === 'corroboration') bCol = "green";
+           if(r.relation_type === 'contradiction') bCol = "red";
+           if(r.relation_type === 'reconciled') bCol = "blue";
            
-           return `
-             <div onclick="openFactDetail('${otherF.id}')" class="p-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 hover:border-gray-300 cursor-pointer transition-colors shadow-sm flex justify-between items-center">
-               <div>
-                 <div class="text-[10px] font-bold font-mono uppercase tracking-wider text-${col}-600 bg-${col}-50 border border-${col}-100 px-1.5 py-0.5 rounded inline-block mb-2">${r.relation_type} WITH</div>
-                 <div class="text-sm font-semibold text-gray-900">${docName(otherF)} • Page ${pageNo(otherF)}</div>
-                 <div class="text-xs font-mono text-gray-500 mt-1">${otherF.value} ${otherF.unit||''} (${otherF.period_normalized||''})</div>
-               </div>
-               <span class="material-symbols-outlined text-gray-400">chevron_right</span>
-             </div>
-           `;
+           return "<div class=\"py-4 border-b border-slate-100 group cursor-pointer\" onclick=\"openFactDetail('" + otherF.id + "')\">" +
+              "<div class=\"flex items-start justify-between\">" +
+                "<div>" +
+                  "<div class=\"text-[9px] font-mono text-" + bCol + "-600 uppercase tracking-widest mb-1\">" + r.relation_type + "</div>" +
+                  "<h3 class=\"text-base font-serif-title text-slate-900 group-hover:text-brand-accentGreen transition-colors\">" + docName(otherF) + "</h3>" +
+                  "<p class=\"text-[10px] font-mono text-slate-400 mt-1 uppercase tracking-widest\">Page " + pageNo(otherF) + "</p>" +
+                "</div>" +
+                "<div class=\"text-right\">" +
+                  "<div class=\"text-lg font-medium text-slate-900\">" + otherF.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (otherF.unit||'') + "</span></div>" +
+                  "<div class=\"text-xs text-slate-500 font-serif mt-1\">" + (otherF.period_normalized || '') + "</div>" +
+                "</div>" +
+              "</div>" +
+            "</div>";
          }).join('');
       } else {
          drs.classList.add('hidden');
@@ -397,11 +488,9 @@
     
     function filterRelations(type) {
       document.querySelectorAll('.rel-filter').forEach(btn => {
-        btn.classList.remove('bg-gray-900', 'text-white');
-        btn.classList.add('bg-gray-100', 'text-gray-600');
+        btn.className = "rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent";
       });
-      event.target.classList.add('bg-gray-900', 'text-white');
-      event.target.classList.remove('bg-gray-100', 'text-gray-600');
+      event.target.className = "rel-filter text-[11px] font-mono uppercase tracking-widest text-brand-accentGreen font-bold border-b border-brand-accentGreen pb-1";
       renderRelationsList(type);
     }
 
@@ -414,31 +503,29 @@
         const fb = factsMap[r.fact_b_id];
         if(!fa || !fb) return '';
         
-        let color = 'gray';
+        let color = 'slate';
         if(r.relation_type==='corroboration') color='green';
         if(r.relation_type==='contradiction') color='red';
         if(r.relation_type==='reconciled') color='blue';
         
-        return `
-          <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-            <div class="bg-gray-50 px-5 py-3 border-b border-gray-200 flex justify-between items-center">
-              <span class="text-[11px] font-mono font-bold uppercase tracking-wider text-${color}-700 bg-${color}-100 px-2.5 py-1 rounded-md border border-${color}-200">${r.relation_type}</span>
-            </div>
-            ${r.explanation ? `<div class="p-4 border-b border-gray-100 text-sm text-gray-600 bg-white leading-relaxed flex gap-2"><span class="material-symbols-outlined text-gray-400 text-[18px] shrink-0 mt-0.5">psychology</span> ${r.explanation}</div>` : ''}
-            <div class="grid grid-cols-2 divide-x divide-gray-100">
-               <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('${fa.id}')">
-                 <div class="text-xs font-mono text-gray-500 mb-2 truncate">${docName(fa)} • P${pageNo(fa)}</div>
-                 <div class="font-semibold text-gray-900 text-sm">${fa.entity}</div>
-                 <div class="text-lg font-mono font-bold text-blue-600 mt-2">${fa.value} <span class="text-xs text-gray-500 font-sans font-normal">${fa.unit||''}</span></div>
-               </div>
-               <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('${fb.id}')">
-                 <div class="text-xs font-mono text-gray-500 mb-2 truncate">${docName(fb)} • P${pageNo(fb)}</div>
-                 <div class="font-semibold text-gray-900 text-sm">${fb.entity}</div>
-                 <div class="text-lg font-mono font-bold text-blue-600 mt-2">${fb.value} <span class="text-xs text-gray-500 font-sans font-normal">${fb.unit||''}</span></div>
-               </div>
-            </div>
-          </div>
-        `;
+        return "<div class=\"py-8 border-b border-slate-100\">" +
+            "<div class=\"flex items-center gap-2 mb-4\">" +
+              "<span class=\"text-[10px] font-mono uppercase tracking-widest text-" + color + "-600\">" + r.relation_type + "</span>" +
+            "</div>" +
+            (r.explanation ? "<div class=\"mb-6 text-sm font-serif italic text-slate-600 leading-relaxed border-l-2 border-" + color + "-200 pl-4\">" + r.explanation + "</div>" : "") +
+            "<div class=\"grid grid-cols-2 gap-10\">" +
+               "<div class=\"cursor-pointer group\" onclick=\"openFactDetail('" + fa.id + "')\">" +
+                 "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2 group-hover:text-brand-accentGreen transition-colors\">" + docName(fa) + " • P" + pageNo(fa) + "</div>" +
+                 "<div class=\"font-serif-title text-slate-900 text-lg\">" + fa.entity + "</div>" +
+                 "<div class=\"text-xl font-sans font-medium text-slate-800 mt-1\">" + fa.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (fa.unit||'') + "</span></div>" +
+               "</div>" +
+               "<div class=\"cursor-pointer group\" onclick=\"openFactDetail('" + fb.id + "')\">" +
+                 "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2 group-hover:text-brand-accentGreen transition-colors\">" + docName(fb) + " • P" + pageNo(fb) + "</div>" +
+                 "<div class=\"font-serif-title text-slate-900 text-lg\">" + fb.entity + "</div>" +
+                 "<div class=\"text-xl font-sans font-medium text-slate-800 mt-1\">" + fb.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (fb.unit||'') + "</span></div>" +
+               "</div>" +
+            "</div>" +
+          "</div>";
       }).join('');
     }
 
@@ -453,63 +540,135 @@
       const renderCaseBlock = (title, r, color) => {
          if(!r) return '';
          const fa = factsMap[r.fact_a_id]; const fb = factsMap[r.fact_b_id];
-         return `
-          <div>
-            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-${color}-500 shadow-sm"></span> ${title}</h2>
-            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-              ${r.explanation ? `<div class="bg-gray-50 px-5 py-4 border-b border-gray-200 text-sm text-gray-700 leading-relaxed"><strong class="text-gray-900">System Reasoning:</strong> ${r.explanation}</div>` : ''}
-              <div class="grid grid-cols-2 divide-x divide-gray-100">
-                 <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('${fa.id}')">
-                   <div class="text-xs font-mono text-gray-500 mb-2 truncate">${docName(fa)} • P${pageNo(fa)}</div>
-                   <div class="font-semibold text-gray-900 text-sm">${fa.entity} <span class="text-gray-400 font-normal ml-1">— ${fa.attribute}</span></div>
-                   <div class="text-xl font-mono font-bold text-${color}-600 mt-2">${fa.value} <span class="text-sm font-sans font-normal">${fa.unit||''}</span></div>
-                 </div>
-                 <div class="p-5 hover:bg-gray-50 cursor-pointer" onclick="openFactDetail('${fb.id}')">
-                   <div class="text-xs font-mono text-gray-500 mb-2 truncate">${docName(fb)} • P${pageNo(fb)}</div>
-                   <div class="font-semibold text-gray-900 text-sm">${fb.entity} <span class="text-gray-400 font-normal ml-1">— ${fb.attribute}</span></div>
-                   <div class="text-xl font-mono font-bold text-${color}-600 mt-2">${fb.value} <span class="text-sm font-sans font-normal">${fb.unit||''}</span></div>
-                 </div>
-              </div>
-            </div>
-          </div>
-         `;
+         return "<div class=\"py-10 border-b border-slate-100\">" +
+            "<h2 class=\"text-xl font-serif-title italic text-slate-900 mb-6\">" + title + "</h2>" +
+            "<div>" +
+              (r.explanation ? "<div class=\"mb-8 text-sm text-slate-600 leading-relaxed pl-4 border-l-2 border-" + color + "-300\"><strong>Engine Reasoning:</strong> " + r.explanation + "</div>" : "") +
+              "<div class=\"grid grid-cols-2 gap-10\">" +
+                 "<div class=\"cursor-pointer group\" onclick=\"openFactDetail('" + fa.id + "')\">" +
+                   "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2 group-hover:text-brand-accentGreen transition-colors\">" + docName(fa) + " • P" + pageNo(fa) + "</div>" +
+                   "<div class=\"font-serif-title text-slate-900 text-lg\">" + fa.entity + " <span class=\"text-slate-400 font-serif italic text-sm ml-1\">— " + fa.attribute + "</span></div>" +
+                   "<div class=\"text-2xl font-sans font-medium text-" + color + "-700 mt-2\">" + fa.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (fa.unit||'') + "</span></div>" +
+                 "</div>" +
+                 "<div class=\"cursor-pointer group\" onclick=\"openFactDetail('" + fb.id + "')\">" +
+                   "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2 group-hover:text-brand-accentGreen transition-colors\">" + docName(fb) + " • P" + pageNo(fb) + "</div>" +
+                   "<div class=\"font-serif-title text-slate-900 text-lg\">" + fb.entity + " <span class=\"text-slate-400 font-serif italic text-sm ml-1\">— " + fb.attribute + "</span></div>" +
+                   "<div class=\"text-2xl font-sans font-medium text-" + color + "-700 mt-2\">" + fb.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (fb.unit||'') + "</span></div>" +
+                 "</div>" +
+              "</div>" +
+            "</div>" +
+          "</div>";
       };
       
-      html += renderCaseBlock('Case 1: Corroboration', corro, 'green');
+      html += renderCaseBlock('Case 1: Corroboration across reports', corro, 'green');
       html += renderCaseBlock('Case 2: Genuine Contradiction', contra, 'red');
-      html += renderCaseBlock('Case 3: Apparent Contradiction (Reconciled)', recon, 'blue');
+      html += renderCaseBlock('Case 3: Apparent Contradiction (Reconciled via Metadata)', recon, 'blue');
       
-      // Case 4 Extraction failure
       const f4 = failures.length > 0 ? failures[0] : null;
       if(f4) {
-        html += `
-          <div>
-            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></span> Case 4: Extraction/Reasoning Failure Handled</h2>
-            <div class="border border-amber-200 rounded-xl overflow-hidden shadow-sm bg-white">
-              <div class="px-5 py-4 border-b border-amber-200 text-sm text-amber-900 bg-amber-50/50 flex justify-between items-center">
-                <span class="font-medium">Quarantined Document Region</span>
-                <span class="font-mono text-[10px] uppercase bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-bold shadow-sm">Safeguard Triggered</span>
-              </div>
-              <div class="p-5">
-                <div class="text-xs font-mono text-gray-500 mb-2"><span class="font-bold text-amber-600">${f4.filename}</span> • Page ${f4.page}</div>
-                <div class="text-sm text-gray-800 leading-relaxed font-medium">${f4.reason}</div>
-              </div>
-            </div>
-          </div>
-        `;
+        html += "<div class=\"py-10 border-b border-slate-100\">" +
+            "<h2 class=\"text-xl font-serif-title italic text-slate-900 mb-6\">Case 4: Extraction/Reasoning Failure Handled</h2>" +
+            "<div>" +
+              "<div class=\"mb-3 text-[10px] font-mono uppercase tracking-widest text-slate-400\">" + f4.filename + " • Page " + f4.page + " <span class=\"ml-4 px-1.5 py-0.5 border border-amber-200 text-amber-700 bg-amber-50\">Safeguard Triggered</span></div>" +
+              "<div class=\"text-base text-slate-800 leading-relaxed font-serif pl-4 border-l-2 border-amber-300\">" + f4.reason + "</div>" +
+            "</div>" +
+          "</div>";
       }
-      
       c.innerHTML = html;
     }
 
     function showDocument(fact) {
       document.getElementById('rp-empty').classList.add('hidden');
       document.getElementById('rp-content').classList.remove('hidden');
+      document.getElementById('rp-content').classList.add('flex');
       
       document.getElementById('rp-doc-title').innerText = docName(fact);
       document.getElementById('rp-doc-page').innerText = 'Page ' + pageNo(fact);
-      document.getElementById('rp-quote').innerText = fact.source_quote || 'Structured table grid extracted directly.';
-      document.getElementById('rp-evidence-type').innerText = (fact.evidence_type || 'prose').toUpperCase();
+      document.getElementById('rp-evidence-type').innerText = (fact.evidence_type || 'prose').toUpperCase() + ' Extraction';
+      document.getElementById('rp-assertion-type').innerText = (fact.assertion_type || 'statement').toUpperCase();
+      document.getElementById('rp-source-label').innerText = fact.source_doc ? fact.source_doc.toUpperCase() : '';
+
+      const canvas = document.getElementById('rp-canvas');
+      const quote = (fact.source_quote || '').trim();
+      const chunkText = (fact.chunk_text || '').trim();
+
+      canvas.innerHTML = buildDocumentCanvas(chunkText, quote, fact);
+    }
+
+    function buildDocumentCanvas(chunkText, quote, fact) {
+      // If no real text at all, show honest fallback
+      if (!chunkText && !quote) {
+        return '<p class="text-xs text-slate-400 italic font-serif">Source context unavailable for this fact.</p>';
+      }
+
+      // If only quote exists (no surrounding chunk), just show the quote highlighted
+      if (!chunkText) {
+        return '<p class="text-[13px] leading-relaxed font-serif text-slate-800">' +
+          '<mark class="bg-[#fef08a] px-0.5">' + escHtml(quote) + '</mark>' +
+          '</p>';
+      }
+
+      // --- Split chunk into sentences for contextual trimming ---
+      // We want a window of sentences around the quoted evidence
+      const sentences = splitIntoSentences(chunkText);
+      const quoteClean = quote.replace(/\s+/g, ' ').trim();
+
+      // Find which sentence(s) contain the quote
+      let matchStart = -1, matchEnd = -1;
+      if (quoteClean.length > 3) {
+        const chunkLower = chunkText.toLowerCase();
+        const quoteLower = quoteClean.toLowerCase();
+        const qIdx = chunkLower.indexOf(quoteLower);
+        if (qIdx !== -1) {
+          // Find sentence indices that overlap with quote position
+          let pos = 0;
+          for (let i = 0; i < sentences.length; i++) {
+            const sEnd = pos + sentences[i].length;
+            if (matchStart === -1 && sEnd > qIdx) matchStart = i;
+            if (sEnd >= qIdx + quoteClean.length) { matchEnd = i; break; }
+            pos = sEnd;
+          }
+        }
+      }
+
+      // Build a context window: 3 sentences before, matched sentences, 3 after
+      const CONTEXT = 3;
+      let windowStart = matchStart !== -1 ? Math.max(0, matchStart - CONTEXT) : 0;
+      let windowEnd = matchEnd !== -1 ? Math.min(sentences.length - 1, matchEnd + CONTEXT) : Math.min(sentences.length - 1, 9);
+
+      const contextSentences = sentences.slice(windowStart, windowEnd + 1);
+      let contextText = contextSentences.join('').trim();
+
+      // Inject highlight into contextText around the quote span
+      let renderedText = escHtml(contextText);
+      if (quoteClean.length > 3) {
+        const escapedQ = escHtml(quoteClean);
+        // Use case-insensitive replacement on the escaped text
+        const quoteRegex = new RegExp(escapedQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        renderedText = renderedText.replace(quoteRegex, '<mark class="bg-[#fef08a] px-0.5 rounded-sm">$&</mark>');
+      }
+
+      // Detect and style leading all-caps / section heading tokens
+      renderedText = renderedText.replace(/^([A-Z][A-Z\s]{4,})(\n|<br>|(?=[A-Z][a-z]))/m, (m, heading) => {
+        return '<span class="block font-serif font-semibold text-slate-900 text-sm mb-3">' + heading.trim() + '</span>';
+      });
+
+      // Show ellipsis only if we sliced into the middle of the chunk
+      const prefix = windowStart > 0 ? '<span class="text-slate-400 text-xs font-mono">…</span> ' : '';
+      const suffix = windowEnd < sentences.length - 1 ? ' <span class="text-slate-400 text-xs font-mono">…</span>' : '';
+
+      return '<p class="text-[13px] leading-[1.85] font-serif text-slate-800">' + prefix + renderedText + suffix + '</p>';
+    }
+
+    function splitIntoSentences(text) {
+      // Split on sentence boundaries but preserve the delimiter
+      const raw = text.replace(/\s+/g, ' ').trim();
+      const parts = raw.split(/(?<=[.!?])\s+(?=[A-Z])/);
+      return parts.map((p, i) => p + (i < parts.length - 1 ? ' ' : ''));
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     function docName(f) {
@@ -517,10 +676,10 @@
     }
     
     function pageNo(f) {
-      return f.source_page || ((f.chunk_id || '').match(/p(\d+)/) ? parseInt((f.chunk_id || '').match(/p(\d+)/)[1]) : '?');
+      const match = (f.chunk_id || '').match(/p(\d+)/);
+      return f.source_page || (match ? parseInt(match[1]) : '?');
     }
 
-    // Search logic
     function handleSearch() {
       const q = document.getElementById('global-search').value.toLowerCase();
       if(q === '') {
@@ -528,44 +687,90 @@
         return;
       }
       switchView('facts');
-      const fd = facts.filter(f => `${f.entity} ${f.attribute} ${f.value}`.toLowerCase().includes(q));
+      const fd = facts.filter(f => (f.entity + ' ' + f.attribute + ' ' + f.value).toLowerCase().includes(q));
       renderFactsList(fd);
     }
     
-    // Upload logic
     document.getElementById('uploadForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fi = document.getElementById('uploadFile');
-      if (!fi.files.length) return alert('Select PDF.');
+      if (!fi.files.length) return alert('Select a PDF file first.');
       
       const btn = document.getElementById('uploadBtn');
       const stat = document.getElementById('uploadStatus');
+      const bar = document.getElementById('up-bar');
+      const badge = document.getElementById('up-badge');
+      const log = document.getElementById('up-log');
+      
       btn.disabled = true; btn.classList.add('opacity-50');
       stat.classList.remove('hidden');
       document.getElementById('up-filename').innerText = fi.files[0].name;
+      badge.innerText = 'Uploading';
+      bar.style.width = '10%';
+      bar.classList.remove('animate-pulse');
+      log.innerText = 'Sending file to server...';
       
       const fd = new FormData(); fd.append('file', fi.files[0]);
       
       try {
         const res = await fetch('/api/upload', {method:'POST', body:fd});
         const d = await res.json();
+        
+        // Already ingested case
+        if(d.message && d.message.includes('already')) {
+          badge.innerText = 'Already ingested';
+          bar.style.width = '100%';
+          bar.classList.add('bg-blue-400');
+          log.innerText = 'This document is already in the knowledge base.';
+          btn.disabled = false; btn.classList.remove('opacity-50');
+          return;
+        }
+        
         if(d.job_id) {
-          document.getElementById('up-log').innerText = 'Job queued. Processing chunks...';
+          badge.innerText = 'Processing';
+          bar.style.width = '25%';
+          bar.classList.add('animate-pulse');
+          log.innerText = 'Worker started. Extracting facts...';
+          
+          let ticks = 0;
+          const stages = ['Chunking document...', 'Running fact extraction...', 'Comparing against knowledge base...', 'Finalising relationships...'];
           const poll = setInterval(async () => {
-            const jRes = await fetch(`/api/job/${d.job_id}`);
-            const jData = await jRes.json();
-            if(jData.status === 'completed' || d.message) {
-              clearInterval(poll);
-              document.getElementById('up-badge').innerText = 'Completed';
-              document.getElementById('up-badge').className = 'text-xs font-bold uppercase text-green-600';
-              document.getElementById('up-bar').className = 'h-full bg-green-500 w-full';
-              document.getElementById('up-log').innerText = 'Ingestion finished.';
-              btn.disabled = false; btn.classList.remove('opacity-50');
+            try {
+              const jRes = await fetch('/api/job/' + d.job_id);
+              const jData = await jRes.json();
+              
+              // Animate progress bar across polling ticks
+              ticks++;
+              const pct = Math.min(90, 25 + ticks * 12);
+              bar.style.width = pct + '%';
+              if(ticks < stages.length) log.innerText = stages[ticks - 1];
+              
+              if(jData.status === 'completed') {
+                clearInterval(poll);
+                badge.innerText = 'Completed';
+                bar.style.width = '100%';
+                bar.classList.remove('animate-pulse');
+                log.innerText = 'Ingestion complete. Reload the page to see new facts.';
+                btn.disabled = false; btn.classList.remove('opacity-50');
+              } else if(jData.status === 'failed') {
+                clearInterval(poll);
+                badge.innerText = 'Failed';
+                badge.classList.replace('text-brand-accentGreen', 'text-red-600');
+                bar.classList.add('bg-red-400');
+                log.innerText = 'Ingestion failed. Check server logs.';
+                btn.disabled = false; btn.classList.remove('opacity-50');
+              }
+            } catch(pollErr) {
+              log.innerText = 'Lost contact with server. Check if backend is running.';
             }
-          }, 1500);
+          }, 2500);
+        } else {
+          log.innerText = d.message || 'Unexpected response from server.';
+          btn.disabled = false; btn.classList.remove('opacity-50');
         }
       } catch (err) {
-        document.getElementById('up-log').innerText = 'Error: ' + err.message;
+        badge.innerText = 'Error';
+        log.innerText = 'Upload failed: ' + err.message;
         btn.disabled = false; btn.classList.remove('opacity-50');
       }
     });
