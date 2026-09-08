@@ -17,7 +17,8 @@ class EntityResolver:
 
     MONETARY_CUES = {
         "repo rate", "monetary policy", "inflation target", "liquidity",
-        "mpc", "reserve money", "policy rate", "reverse repo", "standing deposit facility"
+        "mpc", "reserve money", "policy rate", "policy interest rates", "interest rate", "interest rates",
+        "reverse repo", "standing deposit facility"
     }
 
     FISCAL_CUES = {
@@ -56,18 +57,32 @@ class EntityResolver:
 
     def resolve_authorities(self, surrounding_text: str) -> Tuple[str, float]:
         """
-        Decision 19: 3-sentence window keyword vote.
-        - monetary_hits > fiscal_hits -> RBI (0.70)
-        - fiscal_hits > monetary_hits -> GoI (0.70)
-        - tied or zero -> AMBIGUOUS (0.40, falls below 0.65 threshold)
+        Decision 19 (Hardened for Critic 2.2):
+        3-sentence window keyword vote with sovereign scope awareness.
+        - Checks whether context mentions foreign sovereigns (Federal Reserve, Bank of England, US, UK).
+        - If foreign cues detected, does NOT map to Indian institutions.
+        - If monetary_hits > fiscal_hits:
+            * foreign -> "National Central Bank" (0.65)
+            * default/India -> "Reserve Bank of India" (0.70)
+        - If fiscal_hits > monetary_hits:
+            * foreign -> "National Government" (0.65)
+            * default/India -> "Government of India" (0.70)
+        - Tied or zero -> "AMBIGUOUS" (0.40, falls below 0.65 threshold)
         """
         text_lower = surrounding_text.lower()
         monetary_hits = sum(1 for cue in self.MONETARY_CUES if cue in text_lower)
         fiscal_hits = sum(1 for cue in self.FISCAL_CUES if cue in text_lower)
 
+        foreign_cues = ("federal reserve", "bank of england", "ecb", "treasury", "united states", "united kingdom", "fed")
+        is_foreign = any(fc in text_lower for fc in foreign_cues)
+
         if monetary_hits > fiscal_hits:
+            if is_foreign:
+                return "National Central Bank", 0.65
             return "Reserve Bank of India", 0.70
         elif fiscal_hits > monetary_hits:
+            if is_foreign:
+                return "National Government", 0.65
             return "Government of India", 0.70
         else:
             return "AMBIGUOUS", 0.40

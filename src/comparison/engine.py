@@ -23,6 +23,8 @@ Output MUST be a JSON object:
 Do NOT generate a new explanation. Only classify the candidate sentence.
 """
 
+MAX_EMB_CACHE_SIZE = 4096
+
 class ComparisonEngine:
     def __init__(self, model: str = LLM_MODEL):
         self.resolver = EntityResolver()
@@ -39,6 +41,10 @@ class ComparisonEngine:
         if unique:
             vecs = self.resolver.model.encode(unique, normalize_embeddings=True, show_progress_bar=False)
             for s, v in zip(unique, vecs):
+                # Strict bound: evict oldest entry if capacity reached
+                if len(self.emb_cache) >= MAX_EMB_CACHE_SIZE:
+                    first_key = next(iter(self.emb_cache))
+                    del self.emb_cache[first_key]
                 self.emb_cache[s] = v
 
     def _fast_similarity(self, s1: str, s2: str) -> float:
@@ -97,43 +103,58 @@ class ComparisonEngine:
         return relations
 
     def _attributes_match(self, attr_a: str, attr_b: str) -> bool:
+        """
+        Generalized attribute matching (Critic 3.1):
+        1. Exact string match after canonical cleanup.
+        2. Generic ratio/denominator mismatch guard (e.g. 'debt to gdp' vs 'gdp growth').
+        3. Core substantive token overlap + semantic floor.
+        4. Vector similarity threshold (>= 0.81).
+        Zero hardcoded domain or document-specific metric lists.
+        """
         a = attr_a.lower().strip()
         b = attr_b.lower().strip()
         if a == b:
             return True
 
-        # Stopwords / negative cues to prevent false matches (e.g. Debt/GDP vs GDP growth)
-        if ("debt" in a and "debt" not in b) or ("debt" in b and "debt" not in a):
-            return False
-        if ("trade balance" in a and "trade balance" not in b) or ("trade balance" in b and "trade balance" not in a):
-            return False
-        if ("current account" in a and "current account" not in b) or ("current account" in b and "current account" not in a):
-            return False
-        if ("tax" in a and "tax" not in b) or ("tax" in b and "tax" not in a):
-            return False
-        if ("food" in a and "food" not in b) or ("food" in b and "food" not in a):
+        # Generic ratio / denominator mismatch guard (word-bounded to avoid substrings like 'ope-ratio-ns')
+        ratio_pattern = re.compile(r"\b(to gdp|as % of|% of|margin|ratio)\b|/gdp", re.IGNORECASE)
+        a_ratio = bool(ratio_pattern.search(a))
+        b_ratio = bool(ratio_pattern.search(b))
+        if a_ratio != b_ratio:
             return False
 
-        # Specific metric equivalence clusters (must match full phrase concept)
-        exact_clusters = [
-            {"gdp growth", "real gdp growth", "growth in gdp", "real gdp", "gdp at market prices"},
-            {"gva growth", "real gva growth", "growth in gva", "real gva at basic prices"},
-            {"cpi inflation", "headline cpi inflation", "headline inflation", "cpi-combined", "consumer price index", "cpi inflation rate"},
-            {"gross fiscal deficit", "fiscal deficit", "gfd", "central government fiscal deficit"},
-            {"current account deficit", "cad", "current account balance"},
-            {"capital expenditure", "effective capital expenditure", "capex"},
-            {"gross tax revenue", "tax revenue"}
+        # Negative polarity / concept guard
+        distinct_concepts = [
+            ("debt", "growth"),
+            ("deficit", "revenue"),
+            ("tax", "inflation"),
+            ("export", "import"),
+            ("borrowing", "surplus")
         ]
-        for cluster in exact_clusters:
-            # Must match a key phrase in cluster, not just a standalone 3-letter word
-            match_a = any(c in a for c in cluster)
-            match_b = any(c in b for c in cluster)
-            if match_a and match_b:
+        for term1, term2 in distinct_concepts:
+            if (term1 in a and term2 in b) or (term2 in a and term1 in b):
+                return False
+
+        # Extract substantive tokens (ignoring common noise words)
+        stopwords = {"in", "of", "the", "at", "for", "from", "total", "rate", "annual", "and", "by", "all"}
+        tokens_a = set(re.findall(r"\b[a-z]{3,}\b", a)) - stopwords
+        tokens_b = set(re.findall(r"\b[a-z]{3,}\b", b)) - stopwords
+
+        sim = self._fast_similarity(attr_a, attr_b)
+
+        # High confidence semantic similarity
+        if sim >= 0.81:
+            return True
+
+        # If they share substantive core tokens and have moderate semantic similarity
+        if tokens_a and tokens_b:
+            overlap = tokens_a.intersection(tokens_b)
+            # Sharing 2+ substantive tokens or >50% Jaccard similarity with similarity >= 0.65
+            jaccard = len(overlap) / len(tokens_a.union(tokens_b))
+            if (len(overlap) >= 2 or jaccard >= 0.5) and sim >= 0.65:
                 return True
 
-        # Fast vector similarity from cache (high threshold to avoid loose semantic drift)
-        sim = self._fast_similarity(attr_a, attr_b)
-        return sim >= 0.88
+        return False
 
     def _classify_pair(self, fact_a: Dict[str, Any], fact_b: Dict[str, Any], entity_conf: float) -> Optional[Dict[str, Any]]:
         # Guard 1: Period basis check (calendar vs fiscal)

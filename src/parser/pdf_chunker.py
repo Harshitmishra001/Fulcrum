@@ -165,6 +165,15 @@ class PDFChunker:
         return result
 
     def _clean_prose(self, text: str) -> str:
-        text = re.sub(r"^(ANNUAL REPORT|ECONOMIC REVIEW|ASSESSMENT AND PROSPECTS).*?\n", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"^\d+\s*$", "", text.strip())
-        return text.strip()
+        """
+        Generic running header and artifact cleaner (Critic 3.2).
+        Removes standalone page numbers and short uppercase header lines without document-specific words.
+        """
+        cleaned = text.strip()
+        # 1. Strip standalone page numbers (at start of block, on separate lines, or at end)
+        cleaned = re.sub(r"^\s*\d+\s*\n", "", cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r"\n\s*\d+\s*$", "", cleaned)
+        cleaned = re.sub(r"^\s*\d+\s*$", "", cleaned)
+        # 2. Strip generic short uppercase running headers at the very start of a page block
+        cleaned = re.sub(r"^[A-Z0-9\s,.\-—–/]{4,50}\n(?=[A-Z][a-z])", "", cleaned)
+        return cleaned.strip()
