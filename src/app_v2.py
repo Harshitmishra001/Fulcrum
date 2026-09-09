@@ -44,9 +44,11 @@ async def upload_document(file: UploadFile = File(...)):
         cur.execute("SELECT id, status FROM ingestion_jobs WHERE document_id = ? ORDER BY created_at DESC LIMIT 1", (doc_id,))
         job = cur.fetchone()
         conn.close()
-        if job:
+        if job and job[1] in ("completed", "running", "pending"):
+            # Already done or in-flight — return existing job
             return {"job_id": job[0], "status": job[1], "message": "Document already ingested or processing"}
         else:
+            # Previous job failed or missing — start a fresh job
             job_id = start_job(doc_id, file_path, DB_PATH, doc_hash)
             return {"job_id": job_id, "status": "pending", "doc_name": file.filename}
     else:

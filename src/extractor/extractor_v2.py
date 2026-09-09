@@ -12,7 +12,25 @@ PROMPT_VERSION = "v2_strict_evidence"
 EXTRACTION_SYSTEM_PROMPT = """You are a precision fact extractor.
 Extract meaningful macro/financial facts from the provided text or JSON table.
 
-Output ONLY a JSON list of dictionaries. For tables, yield one dict per numeric cell.
+Output a JSON object containing a "facts" array of dictionaries. For tables, yield one dict per numeric cell.
+Example format:
+{
+  "facts": [
+    {
+      "entity": "Name of the entity/subject",
+      "attribute": "Name of the metric (e.g. Real GDP Growth)",
+      "value": 6.5,
+      "unit": "percent",
+      "period": "FY2025",
+      "claim_basis": "reported",
+      "vintage": "first advance estimates",
+      "scope": "consolidated",
+      "evidence_type": "prose",
+      "source_quote": "Exact text containing the value and period"
+    }
+  ]
+}
+
 Each dict MUST have:
 "entity": Name of the entity/subject.
 "attribute": Name of the metric (e.g. "Real GDP Growth", "Current Account Deficit").
@@ -31,7 +49,7 @@ If table:
   "row_label": The exact row label text.
   "col_header": The exact column header text.
 
-If you cannot extract a valid metric with a numeric value, return an empty list [].
+If you cannot extract a valid metric with a numeric value, return {"facts": []}.
 """
 
 class FactExtractorV2:
