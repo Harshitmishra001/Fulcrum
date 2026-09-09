@@ -7,7 +7,7 @@ import json
 import sqlite3
 import uuid
 
-from src.db.database_v2 import init_db
+from src.db.database import init_db
 from src.worker import start_job
 
 app = FastAPI(title="Fulcrum Fact Verification Layer V2")
@@ -81,6 +81,7 @@ def get_facts():
         FROM facts f 
         LEFT JOIN chunks c ON f.chunk_id = c.chunk_id 
         WHERE f.is_active = 1
+        ORDER BY f.source_doc, f.source_page
     """)
     facts = [dict(r) for r in cur.fetchall()]
     for f in facts:

@@ -331,6 +331,10 @@
     let factsMap = {};
 
     document.addEventListener("DOMContentLoaded", async () => {
+      await loadData();
+    });
+
+    async function loadData() {
       try {
         const [fRes, rRes, eRes] = await Promise.all([
           fetch('/api/facts'), fetch('/api/relations'), fetch('/api/failures')
@@ -339,10 +343,11 @@
         const rData = await rRes.json();
         const eData = await eRes.json();
         
-        facts = fData.facts;
-        relations = rData.relations;
-        failures = eData.failures;
+        facts = fData.facts || [];
+        relations = rData.relations || [];
+        failures = eData.failures || [];
         
+        factsMap = {};
         facts.forEach(f => factsMap[f.id] = f);
         
         document.getElementById('fact-count').innerText = facts.length + ' facts';
@@ -354,8 +359,9 @@
         switchView('facts');
       } catch (e) {
         console.error("Failed loading data", e);
+        document.getElementById('loading').style.display = 'none';
       }
-    });
+    }
 
     function switchView(view) {
       document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));

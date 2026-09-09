@@ -101,6 +101,8 @@ class FactExtractorV2:
                 clean_resp = clean_resp[:-3]
             
             data = json.loads(clean_resp)
+            if isinstance(data, dict) and "result" in data and isinstance(data["result"], list):
+                return data["result"]
             if isinstance(data, dict):
                 data = data.get("facts", []) or data.get("data", []) or [data]
                 

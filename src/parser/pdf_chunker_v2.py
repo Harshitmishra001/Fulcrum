@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 import pdfplumber
 import hashlib
@@ -38,11 +38,16 @@ class PDFChunkerV2:
             if not extracted_table or len(extracted_table) < 2:
                 continue
 
-            # Quarantine explicit malformed tables (Case 4)
-            if self.doc_slug == "rbi" and page_num in [91, 92]:
+            # Quarantine structurally malformed tables (Case 4 — generic, not hardcoded)
+            # A table is malformed if rows have inconsistent cell counts
+            header_len = len(extracted_table[0]) if extracted_table else 0
+            bad_rows = sum(1 for row in extracted_table[1:] if len(row) != header_len)
+            is_malformed = header_len == 0 or bad_rows > len(extracted_table) * 0.4
+
+            if is_malformed:
                 chunk_hash = hashlib.sha256(f"{self.doc_hash}_table_{page_num}_{table_idx}".encode()).hexdigest()
                 chunks.append({
-                    "chunk_id": f"{self.doc_slug}__p{page_num:04d}__table_malformed__{idx:04d}",
+                    "chunk_id": f"{self.doc_slug[:8]}__p{page_num:04d}__table_malformed__{idx:04d}",
                     "chunk_hash": chunk_hash,
                     "doc_slug": self.doc_slug,
                     "document_hash": self.doc_hash,
