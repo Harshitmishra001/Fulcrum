@@ -1,6 +1,6 @@
 # Fulcrum - Fact Knowledge Layer
 
-**[Watch the 3-Minute Demo Video Here](https://youtu.be/TYq4ww8uwZg)**
+[![Demo Video](https://img.youtube.com/vi/TYq4ww8uwZg/maxresdefault.jpg)](https://youtu.be/TYq4ww8uwZg)
 
 Fulcrum is a system that extracts, connects, and compares facts across multiple PDF reports (like the RBI Annual Report, IMF Article IV, and Economic Survey). It discovers numerical and semantic facts, links them to their source text, and identifies when different documents agree, contradict, or can be reconciled.
 
