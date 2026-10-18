@@ -406,10 +406,9 @@ class ComparisonEngine:
             cand_tokens = set(re.findall(r"\b[a-z]{3,}\b", cand_lower)) - {"the", "and", "for", "from", "all", "per", "gdp", "percent"}
             token_overlap = fact_tokens & cand_tokens
 
-            if not token_overlap:
-                sim = self._fast_similarity(fact_context, candidate)
-                if sim < 0.4:
-                    continue  
+            sim = 1.0 if token_overlap else self._fast_similarity(fact_context, candidate)
+            if not token_overlap and sim < 0.4:
+                continue  
 
             if self.client:
                 try:
@@ -431,15 +430,14 @@ class ComparisonEngine:
                 except Exception:
                     pass
 
-            if candidate != fact_a.get("source_quote", "") and candidate != fact_b.get("source_quote", ""):
-                generic_variance_markers = [
-                    "advance", "preliminary", "revised", "revision", "provisional",
-                    "restated", "restatement", "definition", "methodology", "reclassified",
-                    "constant currency", "nominal", "real terms"
-                ]
-                from src.shortcut_audit import log_penalty
-                log_penalty("engine", "hardcode", "Hardcoded generic_variance_markers list used for deterministic reconciliation.")
-                if any(term in cand_lower for term in generic_variance_markers) and len(token_overlap) >= 2:
-                    return True, "YES", candidate
+            generic_variance_markers = [
+                "advance", "preliminary", "revised", "revision", "provisional",
+                "restated", "restatement", "definition", "methodology", "reclassified",
+                "constant currency", "nominal", "real terms"
+            ]
+            from src.shortcut_audit import log_penalty
+            log_penalty("engine", "hardcode", "Hardcoded generic_variance_markers list used for deterministic reconciliation.")
+            if any(term in cand_lower for term in generic_variance_markers) and (len(token_overlap) >= 1 or sim >= 0.4):
+                return True, "YES", candidate
 
         return False, "NO", None

@@ -2,7 +2,7 @@ import uuid
 import pytest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-from src.app import app
+from src.app_v2 import app
 from src.db.database import save_fact, get_active_facts, deactivate_previous_runs
 
 client = TestClient(app)
@@ -23,7 +23,7 @@ def test_sync_endpoints_serve_fast():
 
 def test_missing_api_key_returns_clean_400_instead_of_500():
     """Critic 4.3: Evaluator without an API key gets a helpful 400 error, not a 500 crash."""
-    with patch("src.app.OPENROUTER_API_KEY", ""):
+    with patch("src.app_v2.OPENROUTER_API_KEY", ""):
         res = client.post(
             "/api/upload",
             files={"file": ("sample.pdf", b"%PDF-1.4\nminimal test content", "application/pdf")}

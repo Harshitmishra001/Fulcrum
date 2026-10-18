@@ -5,9 +5,11 @@ import uuid
 import threading
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from src.config import DB_PATH
 
 _thread_local = threading.local()
+
+# Resolve DB path from environment or config
+DB_PATH = os.environ.get("FULCRUM_DB_PATH") or os.getenv("DB_PATH", str(Path(__file__).resolve().parent.parent.parent / "fulcrum.db"))
 
 
 def _create_connection(db_path: str) -> sqlite3.Connection:
@@ -41,11 +43,49 @@ def get_db_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
     _thread_local.connection = conn
     return conn
 
+
 def init_db(db_path: Optional[str] = None):
+    """Initialize the database schema (V1 — compatible with live fulcrum.db)."""
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
-    
-    # Facts table
+
+    # Documents table (V2 addition — safe to create even against V1 DB)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY,
+        file_hash TEXT UNIQUE NOT NULL,
+        filename TEXT NOT NULL,
+        ingested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # Jobs / Extraction Runs
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS ingestion_jobs (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+        status TEXT NOT NULL,
+        parser_version TEXT NOT NULL,
+        model_version TEXT NOT NULL,
+        prompt_hash TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # Chunks table — V1 schema (matches live fulcrum.db)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS chunks (
+        chunk_id TEXT PRIMARY KEY,
+        doc_slug TEXT NOT NULL,
+        page INTEGER NOT NULL,
+        chunk_type TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chunks_doc_page ON chunks (doc_slug, page);")
+
+    # Facts table — V1 schema (matches live fulcrum.db)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS facts (
         id TEXT PRIMARY KEY,
@@ -68,270 +108,279 @@ def init_db(db_path: Optional[str] = None):
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
-    
+
     # Relations table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS relations (
         id TEXT PRIMARY KEY,
-        fact_a_id TEXT NOT NULL,
-        fact_b_id TEXT NOT NULL,
+        fact_a_id TEXT NOT NULL REFERENCES facts(id) ON DELETE CASCADE,
+        fact_b_id TEXT NOT NULL REFERENCES facts(id) ON DELETE CASCADE,
         relation_type TEXT NOT NULL,
         explanation TEXT NOT NULL,
         evidence_quote TEXT,
         entity_resolution_confidence REAL NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (fact_a_id) REFERENCES facts(id),
-        FOREIGN KEY (fact_b_id) REFERENCES facts(id)
-    );
-    """)
-
-    # Chunks table: stores complete document text units (prose, tables, footnotes)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS chunks (
-        chunk_id TEXT PRIMARY KEY,
-        doc_slug TEXT NOT NULL,
-        page INTEGER NOT NULL,
-        chunk_type TEXT NOT NULL,
-        text TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chunks_doc_page ON chunks (doc_slug, page);")
-    
-    # Indexes for performance and deduplication
+
+    # Extraction failures
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS extraction_failures (
+        id TEXT PRIMARY KEY,
+        chunk_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # Extraction cache (LLM response cache keyed by chunk hash)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS extraction_cache (
+        chunk_hash TEXT PRIMARY KEY,
+        response_json TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_facts_active ON facts(is_active);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_facts_doc ON facts(source_doc, is_active);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_facts_entity_attr ON facts(entity, attribute, is_active);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_relations_pair ON relations(fact_a_id, fact_b_id);")
     cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_relations_unique_pair ON relations(fact_a_id, fact_b_id);")
-    
+
     conn.commit()
-    conn.close()
+    if db_path:
+        conn.close()
 
-def save_fact(fact_dict: Dict[str, Any], extraction_run_id: str) -> str:
-    """Inserts a single fact into the database immediately."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    fact_id = fact_dict.get('id') or str(uuid.uuid4())
-    
-    val = fact_dict.get('value')
-    val_num = None
-    val_text = None
-    if isinstance(val, (int, float)):
-        val_num = float(val)
-    elif isinstance(val, str):
-        try:
-            val_num = float(val.replace(',', '').replace('%', '').strip())
-        except ValueError:
-            val_text = val
-    
-    period = fact_dict.get('period', {})
-    if isinstance(period, str):
-        period_raw = period
-        period_type = 'unspecified'
-        period_norm = None
-    else:
-        period_raw = period.get('raw_text', '')
-        period_type = period.get('period_type', 'unspecified')
-        period_norm = period.get('normalized')
 
-    chunk_id = fact_dict.get('chunk_id', '')
-    source_page = fact_dict.get('source_page')
-    if not source_page and '__p' in chunk_id:
-        try:
-            source_page = int(chunk_id.split('__')[1][1:])
-        except (IndexError, ValueError):
-            source_page = 1
-    elif not source_page:
-        source_page = 1
+# ---------------------------------------------------------------------------
+# Helper Functions
+# ---------------------------------------------------------------------------
 
-    cursor.execute("""
-    INSERT OR REPLACE INTO facts (
-        id, extraction_run_id, is_active, entity, attribute, value, value_text, unit,
-        period_raw, period_type, period_normalized, assertion_type,
-        source_doc, source_page, source_quote, chunk_id, extraction_confidence
-    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        fact_id,
-        extraction_run_id,
-        fact_dict.get('entity', 'Unknown'),
-        fact_dict.get('attribute', 'Unknown'),
-        val_num,
-        val_text,
-        fact_dict.get('unit'),
-        period_raw,
-        period_type,
-        period_norm,
-        fact_dict.get('assertion_type', 'stated'),
-        fact_dict.get('source_doc', ''),
-        source_page,
-        fact_dict.get('source_quote', ''),
-        chunk_id,
-        float(fact_dict.get('extraction_confidence', 1.0))
-    ))
-    conn.commit()
-    conn.close()
-    return fact_id
-
-def deactivate_previous_runs(source_doc: str, current_run_id: str):
-    """Marks older extraction runs for this document as is_active = 0."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE facts SET is_active = 0 
-        WHERE source_doc = ? AND extraction_run_id != ?
-    """, (source_doc, current_run_id))
-    conn.commit()
-    conn.close()
-
-def get_active_facts(doc_filter: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Retrieves all active facts from the database."""
-    conn = get_db_connection()
+def get_active_facts(doc_filter: Optional[str] = None, db_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Return all active facts, optionally filtered by source_doc."""
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
     if doc_filter:
-        cursor.execute("SELECT * FROM facts WHERE is_active = 1 AND source_doc = ? ORDER BY source_page ASC", (doc_filter,))
+        cursor.execute(
+            "SELECT * FROM facts WHERE is_active = 1 AND source_doc = ? ORDER BY source_doc, source_page",
+            (doc_filter,)
+        )
     else:
-        cursor.execute("SELECT * FROM facts WHERE is_active = 1 ORDER BY source_doc, source_page ASC")
+        cursor.execute(
+            "SELECT * FROM facts WHERE is_active = 1 ORDER BY source_doc, source_page"
+        )
     rows = [dict(r) for r in cursor.fetchall()]
-    conn.close()
+    if db_path:
+        conn.close()
     return rows
 
-def save_relation(rel_dict: Dict[str, Any]) -> str:
-    """Saves or updates a relation between two facts without duplicating pairs."""
-    conn = get_db_connection()
+
+def save_fact(fact_data: Dict[str, Any], extraction_run_id: str, db_path: Optional[str] = None) -> str:
+    """Insert a single fact row. Returns the fact ID."""
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
-    
-    # Check if a relation between this pair (in either direction) already exists
+
+    fact_id = fact_data.get("id") or str(uuid.uuid4())
+
+    period = fact_data.get("period") or {}
+    if isinstance(period, str):
+        period_raw = period
+        period_type = "unspecified"
+        period_normalized = None
+    else:
+        period_raw = period.get("raw_text") or period.get("normalized") or ""
+        period_type = period.get("period_type") or "unspecified"
+        period_normalized = period.get("normalized")
+
+    raw_val = fact_data.get("value")
+    try:
+        value = float(str(raw_val).replace(",", "").replace("%", "").strip()) if raw_val is not None else None
+    except (ValueError, TypeError):
+        value = None
+
+    assertion_type = fact_data.get("assertion_type") or "reported"
+
     cursor.execute("""
-    SELECT id FROM relations 
-    WHERE (fact_a_id = ? AND fact_b_id = ?) 
-       OR (fact_a_id = ? AND fact_b_id = ?)
-    """, (rel_dict['fact_a_id'], rel_dict['fact_b_id'], rel_dict['fact_b_id'], rel_dict['fact_a_id']))
-    existing = cursor.fetchone()
-    
-    rel_id = existing['id'] if existing else (rel_dict.get('id') or str(uuid.uuid4()))
-    
-    cursor.execute("""
-    INSERT OR REPLACE INTO relations (
-        id, fact_a_id, fact_b_id, relation_type, explanation, evidence_quote, entity_resolution_confidence
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO facts (
+            id, extraction_run_id, is_active, entity, attribute,
+            value, unit, period_raw, period_type, period_normalized,
+            assertion_type, source_doc, source_page, source_quote,
+            chunk_id, extraction_confidence
+        ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        rel_id,
-        rel_dict['fact_a_id'],
-        rel_dict['fact_b_id'],
-        rel_dict['relation_type'],
-        rel_dict.get('explanation', ''),
-        rel_dict.get('evidence_quote'),
-        float(rel_dict.get('entity_resolution_confidence', 1.0))
+        fact_id, extraction_run_id,
+        str(fact_data.get("entity") or "Unknown"),
+        str(fact_data.get("attribute") or "Unknown"),
+        value,
+        str(fact_data.get("unit") or ""),
+        period_raw, period_type, period_normalized,
+        assertion_type,
+        str(fact_data.get("source_doc") or ""),
+        int(fact_data.get("source_page") or 0),
+        str(fact_data.get("source_quote") or ""),
+        str(fact_data.get("chunk_id") or ""),
+        float(fact_data.get("extraction_confidence") or 0.95)
     ))
     conn.commit()
-    conn.close()
-    return rel_id
+    if db_path:
+        conn.close()
+    return fact_id
 
-def save_relations_batch(relations: List[Dict[str, Any]]) -> int:
-    """Saves multiple relations in a single atomic transaction without opening/closing connections repeatedly."""
-    if not relations:
-        return 0
-    conn = get_db_connection()
+
+def save_relation(relation: Dict[str, Any], db_path: Optional[str] = None):
+    """Insert a single relation (upsert on conflict).
+    
+    Canonically orders fact_a_id/fact_b_id so (A,B) and (B,A) deduplicate via UNIQUE index.
+    """
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
-    saved_count = 0
-    for rel_dict in relations:
-        cursor.execute("""
-        SELECT id FROM relations 
-        WHERE (fact_a_id = ? AND fact_b_id = ?) 
-           OR (fact_a_id = ? AND fact_b_id = ?)
-        """, (rel_dict['fact_a_id'], rel_dict['fact_b_id'], rel_dict['fact_b_id'], rel_dict['fact_a_id']))
-        existing = cursor.fetchone()
-        rel_id = existing['id'] if existing else (rel_dict.get('id') or str(uuid.uuid4()))
-        cursor.execute("""
-        INSERT OR REPLACE INTO relations (
-            id, fact_a_id, fact_b_id, relation_type, explanation, evidence_quote, entity_resolution_confidence
+    rel_id = relation.get("id") or str(uuid.uuid4())
+    # Canonical ordering: smaller ID always goes into fact_a_id to catch reversed duplicates
+    fa, fb = relation["fact_a_id"], relation["fact_b_id"]
+    if fa > fb:
+        fa, fb = fb, fa
+    cursor.execute("""
+        INSERT OR IGNORE INTO relations (
+            id, fact_a_id, fact_b_id, relation_type, explanation,
+            evidence_quote, entity_resolution_confidence
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            rel_id,
-            rel_dict['fact_a_id'],
-            rel_dict['fact_b_id'],
-            rel_dict['relation_type'],
-            rel_dict.get('explanation', ''),
-            rel_dict.get('evidence_quote'),
-            float(rel_dict.get('entity_resolution_confidence', 1.0))
-        ))
-        saved_count += 1
+    """, (
+        rel_id, fa, fb,
+        relation["relation_type"],
+        relation["explanation"],
+        relation.get("evidence_quote"),
+        float(relation.get("entity_resolution_confidence") or 0.0)
+    ))
     conn.commit()
-    conn.close()
-    return saved_count
+    if db_path:
+        conn.close()
 
-def get_all_relations() -> List[Dict[str, Any]]:
-    """Retrieves all relations."""
-    conn = get_db_connection()
+
+def save_relations_batch(relations: List[Dict[str, Any]], db_path: Optional[str] = None):
+    """Batch-insert relations (INSERT OR IGNORE to skip existing pairs).
+    
+    Canonically orders fact_a_id/fact_b_id so reversed pairs deduplicate via UNIQUE index.
+    """
+    if not relations:
+        return
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM relations ORDER BY created_at DESC")
-    rows = [dict(r) for r in cursor.fetchall()]
-    conn.close()
-    return rows
+    rows = []
+    for r in relations:
+        fa, fb = r["fact_a_id"], r["fact_b_id"]
+        if fa > fb:
+            fa, fb = fb, fa
+        rows.append((
+            r.get("id") or str(uuid.uuid4()),
+            fa, fb,
+            r["relation_type"],
+            r["explanation"],
+            r.get("evidence_quote"),
+            float(r.get("entity_resolution_confidence") or 0.0)
+        ))
+    cursor.executemany("""
+        INSERT OR IGNORE INTO relations (
+            id, fact_a_id, fact_b_id, relation_type, explanation,
+            evidence_quote, entity_resolution_confidence
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, rows)
+    conn.commit()
+    if db_path:
+        conn.close()
+
 
 def save_chunks_batch(chunks: List[Dict[str, Any]], db_path: Optional[str] = None) -> int:
-    """Saves parsed document chunks into SQLite."""
+    """Batch-insert parsed document chunks. Returns number of rows inserted."""
     if not chunks:
         return 0
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
-    saved = 0
-    for c in chunks:
-        cursor.execute("""
-        INSERT OR REPLACE INTO chunks (chunk_id, doc_slug, page, chunk_type, text)
+    rows = [
+        (c["chunk_id"], c["doc_slug"], c["page"], c["chunk_type"], c["text"])
+        for c in chunks
+    ]
+    cursor.executemany("""
+        INSERT OR IGNORE INTO chunks (chunk_id, doc_slug, page, chunk_type, text)
         VALUES (?, ?, ?, ?, ?)
-        """, (
-            c["chunk_id"],
-            c.get("doc_slug", "unknown"),
-            c.get("page", 1),
-            c.get("chunk_type", "prose"),
-            c.get("text", "")
-        ))
-        saved += 1
+    """, rows)
     conn.commit()
-    conn.close()
-    return saved
+    inserted = cursor.rowcount if len(rows) == 1 else len(rows)
+    if db_path:
+        conn.close()
+    return inserted
+
 
 def get_chunk_text(chunk_id: str, db_path: Optional[str] = None) -> Optional[str]:
-    """Retrieves full text of a specific chunk by ID."""
+    """Fetch the text of a single chunk by its ID."""
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT text FROM chunks WHERE chunk_id = ?", (chunk_id,))
     row = cursor.fetchone()
-    conn.close()
-    return row["text"] if row else None
+    if db_path:
+        conn.close()
+    return row[0] if row else None
 
-def get_chunks_by_page(doc_slug: str, page: int, window: int = 1, db_path: Optional[str] = None) -> List[str]:
-    """Retrieves all chunk texts for a document within +/- window pages."""
+
+def get_chunks_by_page(doc_slug: str, page: int, window: int = 0, db_path: Optional[str] = None) -> List[str]:
+    """Return list of chunk texts for a given document page.
+    
+    If window > 0, also returns chunks from adjacent pages within ±window.
+    """
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
-    cursor.execute("""
-    SELECT text FROM chunks 
-    WHERE doc_slug = ? AND page BETWEEN ? AND ?
-    ORDER BY page, chunk_id
-    """, (doc_slug, page - window, page + window))
-    rows = cursor.fetchall()
-    return [r["text"] for r in rows]
+    cursor.execute(
+        "SELECT text FROM chunks WHERE doc_slug = ? AND page BETWEEN ? AND ? ORDER BY page",
+        (doc_slug, page - window, page + window)
+    )
+    rows = [r[0] for r in cursor.fetchall()]
+    if db_path:
+        conn.close()
+    return rows
 
 
 def get_all_chunk_texts(db_path: Optional[str] = None) -> Dict[str, str]:
-    """Pre-loads ALL chunk texts into a dict: {chunk_id → text}. Eliminates N+1 queries."""
+    """Return a dict mapping chunk_id -> text for ALL chunks (pre-load cache)."""
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT chunk_id, text FROM chunks")
-    result = {r["chunk_id"]: r["text"] for r in cursor.fetchall()}
+    result = {row[0]: row[1] for row in cursor.fetchall()}
+    if db_path:
+        conn.close()
     return result
 
 
 def get_all_page_chunks(db_path: Optional[str] = None) -> Dict[tuple, List[str]]:
-    """Pre-loads ALL chunks grouped by (doc_slug, page): {(doc, page) → [texts]}. Eliminates N+1 queries."""
-    from collections import defaultdict
+    """Return a dict mapping (doc_slug, page) -> [text, ...] for ALL chunks."""
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT doc_slug, page, text FROM chunks ORDER BY doc_slug, page, chunk_id")
-    result = defaultdict(list)
-    for r in cursor.fetchall():
-        result[(r["doc_slug"], r["page"])].append(r["text"])
-    return dict(result)
+    cursor.execute("SELECT doc_slug, page, text FROM chunks")
+    result: Dict[tuple, List[str]] = {}
+    for row in cursor.fetchall():
+        key = (row[0], row[1])
+        result.setdefault(key, []).append(row[2])
+    if db_path:
+        conn.close()
+    return result
 
+
+def get_all_relations(db_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Return all relations."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM relations ORDER BY created_at DESC")
+    rows = [dict(r) for r in cursor.fetchall()]
+    if db_path:
+        conn.close()
+    return rows
+
+
+def deactivate_previous_runs(source_doc: str, current_run_id: str, db_path: Optional[str] = None):
+    """Mark all facts for source_doc except the current run as inactive."""
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE facts SET is_active = 0 WHERE source_doc = ? AND extraction_run_id != ?",
+        (source_doc, current_run_id)
+    )
+    conn.commit()
+    if db_path:
+        conn.close()

@@ -9,6 +9,7 @@ from src.parser.pdf_chunker_v2 import PDFChunkerV2
 from src.extractor.extractor_v2 import FactExtractorV2
 
 def process_job(job_id: str, document_id: str, pdf_path: str, db_path: str, doc_hash: str):
+    conn = None
     try:
         # Mark as running — use a fresh connection per thread
         conn = sqlite3.connect(db_path, timeout=30.0)
@@ -21,21 +22,24 @@ def process_job(job_id: str, document_id: str, pdf_path: str, db_path: str, doc_
         # Step 1: Parse and Chunk
         chunker = PDFChunkerV2(doc_slug=document_id, pdf_path=pdf_path)
         chunks = chunker.chunk_document()
-        
-        # Save chunks
+
+        # Save chunks — V1 schema (chunk_id, doc_slug, page, chunk_type, text)
         for chunk in chunks:
             if chunk["chunk_type"] == "table_malformed":
                 try:
                     cur.execute("""
                         INSERT OR IGNORE INTO chunks (chunk_id, doc_slug, page, chunk_type, text)
                         VALUES (?, ?, ?, ?, ?)
-                    """, (chunk["chunk_id"], document_id, chunk["page"], chunk["chunk_type"], "Malformed table quarantined."))
+                    """, (chunk["chunk_id"], document_id, chunk["page"], chunk["chunk_type"],
+                          "Malformed table quarantined."))
                     cur.execute("""
                         INSERT OR IGNORE INTO extraction_failures (id, chunk_id, reason)
                         VALUES (?, ?, ?)
-                    """, (f"fail_{chunk['chunk_id']}", chunk["chunk_id"], "Malformed table row/column alignment detected."))
-                except Exception:
-                    pass
+                    """, (str(uuid.uuid4()), chunk["chunk_id"],
+                          "Malformed table row/column alignment detected."))
+                except Exception as e:
+                    print(f"[worker] Error saving malformed chunk {chunk.get('chunk_id')}: {e}")
+                conn.commit()
                 continue
 
             try:
@@ -43,22 +47,31 @@ def process_job(job_id: str, document_id: str, pdf_path: str, db_path: str, doc_
                     INSERT OR IGNORE INTO chunks (chunk_id, doc_slug, page, chunk_type, text)
                     VALUES (?, ?, ?, ?, ?)
                 """, (chunk["chunk_id"], document_id, chunk["page"], chunk["chunk_type"], chunk["text"]))
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[worker] Error saving chunk {chunk.get('chunk_id')}: {e}")
+                try:
+                    cur.execute("""
+                        INSERT OR IGNORE INTO extraction_failures (id, chunk_id, reason)
+                        VALUES (?, ?, ?)
+                    """, (str(uuid.uuid4()), chunk.get("chunk_id", "unknown"),
+                          f"Chunk save error: {e}"))
+                except Exception:
+                    pass
+
         conn.commit()
 
         # Step 2: Extract Facts
         extractor = FactExtractorV2(db_path=db_path, release_mode=False)
         from src.normalizer.period_normalizer import PeriodNormalizer
-        
+
         for chunk in chunks:
             if chunk["chunk_type"] == "table_malformed":
                 continue
-            
+
             chunk_dict = {
                 "chunk_id": chunk["chunk_id"],
                 "document_hash": doc_hash,
-                "chunk_hash": chunk["chunk_hash"],
+                "chunk_hash": chunk.get("chunk_hash", ""),
                 "page": chunk["page"],
                 "chunk_type": chunk["chunk_type"],
                 "text": chunk["text"]
@@ -68,13 +81,13 @@ def process_job(job_id: str, document_id: str, pdf_path: str, db_path: str, doc_
             for fact_data in extracted_data:
                 try:
                     fact_id = str(uuid.uuid4())
-                    
+
                     # Safely handle period — LLM may return a string, dict, or None
                     period_raw = fact_data.get("period")
                     if isinstance(period_raw, dict):
                         period_raw = period_raw.get("raw_text") or period_raw.get("normalized") or ""
                     period_raw = str(period_raw).strip() if period_raw else ""
-                    
+
                     if period_raw:
                         norm_res = PeriodNormalizer.normalize(period_raw)
                         period_type = norm_res.get("period_type", "unspecified")
@@ -82,11 +95,11 @@ def process_job(job_id: str, document_id: str, pdf_path: str, db_path: str, doc_
                     else:
                         period_type = "unspecified"
                         period_normalized = None
-                    
-                    assertion_type = fact_data.get("claim_basis") or "reported"
+
+                    assertion_type = fact_data.get("assertion_type") or fact_data.get("claim_basis") or "reported"
                     if assertion_type == "unknown":
                         assertion_type = "reported"
-                    
+
                     # Safely extract numeric value
                     raw_val = fact_data.get("value")
                     try:
@@ -94,6 +107,7 @@ def process_job(job_id: str, document_id: str, pdf_path: str, db_path: str, doc_
                     except (ValueError, TypeError):
                         value = None
 
+                    # V1 schema: extraction_run_id, source_doc, chunk_id (plain text ref)
                     cur.execute("""
                         INSERT OR IGNORE INTO facts (
                             id, extraction_run_id, is_active, entity, attribute,
@@ -114,13 +128,21 @@ def process_job(job_id: str, document_id: str, pdf_path: str, db_path: str, doc_
                         chunk["chunk_id"], 0.95
                     ))
                 except Exception as fact_err:
-                    print(f"  Skipping malformed fact: {fact_err}")
+                    print(f"[worker] Skipping malformed fact: {fact_err}")
+                    try:
+                        cur.execute("""
+                            INSERT OR IGNORE INTO extraction_failures (id, chunk_id, reason)
+                            VALUES (?, ?, ?)
+                        """, (str(uuid.uuid4()), chunk.get("chunk_id", "unknown"),
+                              f"Fact insertion error: {fact_err}"))
+                    except Exception:
+                        pass
                     continue
-            
+
             # Commit after every chunk — prevents write-lock deadlock with extractor cache conn
             conn.commit()
-        
-        # Deactivate old runs for this document
+
+        # Deactivate old runs for this document (V1: extraction_run_id, source_doc)
         cur.execute(
             "UPDATE facts SET is_active = 0 WHERE source_doc = ? AND extraction_run_id != ?",
             (document_id, job_id)
@@ -131,14 +153,14 @@ def process_job(job_id: str, document_id: str, pdf_path: str, db_path: str, doc_
         from src.comparison.engine import ComparisonEngine
         engine = ComparisonEngine()
         engine.run_comparison()
-        
+
         cur.execute("UPDATE ingestion_jobs SET status = 'completed' WHERE id = ?", (job_id,))
         conn.commit()
         conn.close()
-        print(f"Job {job_id} completed successfully.")
+        print(f"[worker] Job {job_id} completed successfully.")
 
     except Exception as e:
-        print(f"Job {job_id} failed: {traceback.format_exc()}")
+        print(f"[worker] Job {job_id} failed: {traceback.format_exc()}")
         try:
             conn2 = sqlite3.connect(db_path, timeout=10.0)
             conn2.execute("UPDATE ingestion_jobs SET status = 'failed' WHERE id = ?", (job_id,))
@@ -146,11 +168,17 @@ def process_job(job_id: str, document_id: str, pdf_path: str, db_path: str, doc_
             conn2.close()
         except Exception:
             pass
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
 
 def start_job(document_id: str, pdf_path: str, db_path: str, doc_hash: str) -> str:
     job_id = str(uuid.uuid4())
-    
+
     conn = sqlite3.connect(db_path, timeout=10.0)
     cur = conn.cursor()
     cur.execute("""
@@ -159,7 +187,7 @@ def start_job(document_id: str, pdf_path: str, db_path: str, doc_hash: str) -> s
     """, (job_id, document_id))
     conn.commit()
     conn.close()
-    
+
     # Use threading instead of multiprocessing — avoids Windows spawn/freeze issues
     t = threading.Thread(
         target=process_job,
@@ -167,5 +195,5 @@ def start_job(document_id: str, pdf_path: str, db_path: str, doc_hash: str) -> s
         daemon=True
     )
     t.start()
-    
+
     return job_id

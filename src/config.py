@@ -12,7 +12,10 @@ LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'https://openrouter.ai/api/v1')
 LLM_MODEL = os.getenv('LLM_MODEL', 'openai/gpt-4o-mini')
 
 # Database
-DB_PATH = os.getenv('DB_PATH', str(BASE_DIR / 'fulcrum.db'))
+DB_PATH = os.getenv('FULCRUM_DB_PATH') or os.getenv('DB_PATH', str(BASE_DIR / 'fulcrum.db'))
+
+def get_current_db_path() -> str:
+    return os.getenv('FULCRUM_DB_PATH') or os.getenv('DB_PATH', str(BASE_DIR / 'fulcrum.db'))
 
 # Thresholds (Locked by Spec & DECISIONS.md)
 CONFIDENCE_THRESHOLD = 0.5
