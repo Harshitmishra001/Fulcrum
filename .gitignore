@@ -48,5 +48,4 @@ Thumbs.db
 audit_trail.jsonl
 DECISIONS.md
 fulcrum-build-spec.md
-required_cases.json
 pytestdebug.log

@@ -328,6 +328,7 @@
     let facts = [];
     let relations = [];
     let failures = [];
+    let oracleCases = {};
     let factsMap = {};
 
     document.addEventListener("DOMContentLoaded", async () => {
@@ -336,16 +337,18 @@
 
     async function loadData() {
       try {
-        const [fRes, rRes, eRes] = await Promise.all([
-          fetch('/api/facts'), fetch('/api/relations'), fetch('/api/failures')
+        const [fRes, rRes, eRes, oRes] = await Promise.all([
+          fetch('/api/facts'), fetch('/api/relations'), fetch('/api/failures'), fetch('/api/oracle-cases')
         ]);
         const fData = await fRes.json();
         const rData = await rRes.json();
         const eData = await eRes.json();
+        const oData = await oRes.json();
         
         facts = fData.facts || [];
         relations = rData.relations || [];
         failures = eData.failures || [];
+        oracleCases = oData || {};
         
         factsMap = {};
         facts.forEach(f => factsMap[f.id] = f);
@@ -543,41 +546,80 @@
       
       let html = '';
       
-      const renderCaseBlock = (title, r, color) => {
-         if(!r) return '';
-         const fa = factsMap[r.fact_a_id]; const fb = factsMap[r.fact_b_id];
-         return "<div class=\"py-10 border-b border-slate-100\">" +
-            "<h2 class=\"text-xl font-serif-title italic text-slate-900 mb-6\">" + title + "</h2>" +
-            "<div>" +
-              (r.explanation ? "<div class=\"mb-8 text-sm text-slate-600 leading-relaxed pl-4 border-l-2 border-" + color + "-300\"><strong>Engine Reasoning:</strong> " + r.explanation + "</div>" : "") +
-              "<div class=\"grid grid-cols-2 gap-10\">" +
-                 "<div class=\"cursor-pointer group\" onclick=\"openFactDetail('" + fa.id + "')\">" +
-                   "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2 group-hover:text-brand-accentGreen transition-colors\">" + docName(fa) + " • P" + pageNo(fa) + "</div>" +
-                   "<div class=\"font-serif-title text-slate-900 text-lg\">" + fa.entity + " <span class=\"text-slate-400 font-serif italic text-sm ml-1\">— " + fa.attribute + "</span></div>" +
-                   "<div class=\"text-2xl font-sans font-medium text-" + color + "-700 mt-2\">" + fa.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (fa.unit||'') + "</span></div>" +
-                 "</div>" +
-                 "<div class=\"cursor-pointer group\" onclick=\"openFactDetail('" + fb.id + "')\">" +
-                   "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2 group-hover:text-brand-accentGreen transition-colors\">" + docName(fb) + " • P" + pageNo(fb) + "</div>" +
-                   "<div class=\"font-serif-title text-slate-900 text-lg\">" + fb.entity + " <span class=\"text-slate-400 font-serif italic text-sm ml-1\">— " + fb.attribute + "</span></div>" +
-                   "<div class=\"text-2xl font-sans font-medium text-" + color + "-700 mt-2\">" + fb.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (fb.unit||'') + "</span></div>" +
-                 "</div>" +
-              "</div>" +
-            "</div>" +
-          "</div>";
+      const renderCaseBlock = (title, r, oracleKey, color) => {
+         const oCase = oracleCases[oracleKey] || null;
+         if(!r && !oCase) return '';
+
+         if(r) {
+            const fa = factsMap[r.fact_a_id]; const fb = factsMap[r.fact_b_id];
+            if(fa && fb) {
+               return "<div class=\"py-10 border-b border-slate-100\">" +
+                  "<div class=\"flex items-center justify-between mb-4\">" +
+                     "<h2 class=\"text-xl font-serif-title italic text-slate-900\">" + title + "</h2>" +
+                     "<span class=\"text-[10px] font-mono uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2 py-0.5 border border-emerald-200\">Live Engine Match</span>" +
+                  "</div>" +
+                  (oCase && oCase.description ? "<div class=\"mb-3 text-xs text-slate-400 font-serif italic\">Benchmark: " + oCase.description + "</div>" : "") +
+                  "<div>" +
+                    (r.explanation ? "<div class=\"mb-8 text-sm text-slate-600 leading-relaxed pl-4 border-l-2 border-" + color + "-300\"><strong>Engine Reasoning:</strong> " + r.explanation + "</div>" : "") +
+                    "<div class=\"grid grid-cols-2 gap-10\">" +
+                       "<div class=\"cursor-pointer group\" onclick=\"openFactDetail('" + fa.id + "')\">" +
+                         "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2 group-hover:text-brand-accentGreen transition-colors\">" + docName(fa) + " • P" + pageNo(fa) + "</div>" +
+                         "<div class=\"font-serif-title text-slate-900 text-lg\">" + fa.entity + " <span class=\"text-slate-400 font-serif italic text-sm ml-1\">— " + fa.attribute + "</span></div>" +
+                         "<div class=\"text-2xl font-sans font-medium text-" + color + "-700 mt-2\">" + fa.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (fa.unit||'') + "</span></div>" +
+                       "</div>" +
+                       "<div class=\"cursor-pointer group\" onclick=\"openFactDetail('" + fb.id + "')\">" +
+                         "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2 group-hover:text-brand-accentGreen transition-colors\">" + docName(fb) + " • P" + pageNo(fb) + "</div>" +
+                         "<div class=\"font-serif-title text-slate-900 text-lg\">" + fb.entity + " <span class=\"text-slate-400 font-serif italic text-sm ml-1\">— " + fb.attribute + "</span></div>" +
+                         "<div class=\"text-2xl font-sans font-medium text-" + color + "-700 mt-2\">" + fb.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (fb.unit||'') + "</span></div>" +
+                       "</div>" +
+                    "</div>" +
+                  "</div>" +
+                "</div>";
+            }
+         }
+
+         if(oCase && oCase.fact_a && oCase.fact_b) {
+            return "<div class=\"py-10 border-b border-slate-100\">" +
+               "<div class=\"flex items-center justify-between mb-4\">" +
+                  "<h2 class=\"text-xl font-serif-title italic text-slate-900\">" + title + "</h2>" +
+                  "<span class=\"text-[10px] font-mono uppercase tracking-widest text-slate-500 bg-slate-50 px-2 py-0.5 border border-slate-200\">Oracle Benchmark Reference</span>" +
+               "</div>" +
+               "<div class=\"mb-6 text-sm text-slate-600 leading-relaxed pl-4 border-l-2 border-" + color + "-300\"><strong>Ground Truth Benchmark:</strong> " + (oCase.description || oCase.name) + "</div>" +
+               "<div class=\"grid grid-cols-2 gap-10\">" +
+                  "<div>" +
+                    "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2\">" + oCase.fact_a.source_doc + " • " + (oCase.fact_a.period || '') + "</div>" +
+                    "<div class=\"font-serif-title text-slate-900 text-lg\">" + oCase.fact_a.entity + " <span class=\"text-slate-400 font-serif italic text-sm ml-1\">— " + oCase.fact_a.attribute + "</span></div>" +
+                    "<div class=\"text-2xl font-sans font-medium text-" + color + "-700 mt-2\">" + oCase.fact_a.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (oCase.fact_a.unit||'') + "</span></div>" +
+                  "</div>" +
+                  "<div>" +
+                    "<div class=\"text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2\">" + oCase.fact_b.source_doc + " • " + (oCase.fact_b.period || '') + "</div>" +
+                    "<div class=\"font-serif-title text-slate-900 text-lg\">" + oCase.fact_b.entity + " <span class=\"text-slate-400 font-serif italic text-sm ml-1\">— " + oCase.fact_b.attribute + "</span></div>" +
+                    "<div class=\"text-2xl font-sans font-medium text-" + color + "-700 mt-2\">" + oCase.fact_b.value + " <span class=\"text-xs text-slate-500 font-serif italic\">" + (oCase.fact_b.unit||'') + "</span></div>" +
+                  "</div>" +
+               "</div>" +
+             "</div>";
+         }
+         return '';
       };
       
-      html += renderCaseBlock('Case 1: Corroboration across reports', corro, 'green');
-      html += renderCaseBlock('Case 2: Genuine Contradiction', contra, 'red');
-      html += renderCaseBlock('Case 3: Apparent Contradiction (Reconciled via Metadata)', recon, 'blue');
+      html += renderCaseBlock('Case 1: Corroboration across reports', corro, 'case1_corroboration', 'green');
+      html += renderCaseBlock('Case 2: Genuine Contradiction', contra, 'case2_contradiction', 'red');
+      html += renderCaseBlock('Case 3: Apparent Contradiction (Reconciled via Metadata)', recon, 'case3_reconciliation', 'blue');
       
       const f4 = failures.length > 0 ? failures[0] : null;
+      const oCase4 = oracleCases['case4_failure'] || null;
       if(f4) {
         html += "<div class=\"py-10 border-b border-slate-100\">" +
-            "<h2 class=\"text-xl font-serif-title italic text-slate-900 mb-6\">Case 4: Extraction/Reasoning Failure Handled</h2>" +
+            "<div class=\"flex items-center justify-between mb-4\"><h2 class=\"text-xl font-serif-title italic text-slate-900\">Case 4: Extraction/Reasoning Failure Handled</h2><span class=\"text-[10px] font-mono uppercase tracking-widest text-amber-700 bg-amber-50 px-2 py-0.5 border border-amber-200\">Live Quarantine</span></div>" +
             "<div>" +
               "<div class=\"mb-3 text-[10px] font-mono uppercase tracking-widest text-slate-400\">" + f4.filename + " • Page " + f4.page + " <span class=\"ml-4 px-1.5 py-0.5 border border-amber-200 text-amber-700 bg-amber-50\">Safeguard Triggered</span></div>" +
               "<div class=\"text-base text-slate-800 leading-relaxed font-serif pl-4 border-l-2 border-amber-300\">" + f4.reason + "</div>" +
             "</div>" +
+          "</div>";
+      } else if(oCase4) {
+        html += "<div class=\"py-10 border-b border-slate-100\">" +
+            "<div class=\"flex items-center justify-between mb-4\"><h2 class=\"text-xl font-serif-title italic text-slate-900\">Case 4: Extraction/Reasoning Failure Handled</h2><span class=\"text-[10px] font-mono uppercase tracking-widest text-slate-500 bg-slate-50 px-2 py-0.5 border border-slate-200\">Oracle Benchmark Reference</span></div>" +
+            "<div class=\"text-base text-slate-800 leading-relaxed font-serif pl-4 border-l-2 border-amber-300\">" + (oCase4.error_case || oCase4.description) + "</div>" +
           "</div>";
       }
       c.innerHTML = html;

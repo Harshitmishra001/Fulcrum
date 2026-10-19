@@ -181,7 +181,11 @@ def get_failures():
 @app.get("/api/oracle-cases")
 def get_oracle_cases():
     try:
-        with open("required_cases.json", "r", encoding="utf-8") as f:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        case_path = os.path.join(base_dir, "required_cases.json")
+        if not os.path.exists(case_path):
+            case_path = "required_cases.json"
+        with open(case_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {}

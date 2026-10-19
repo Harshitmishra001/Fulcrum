@@ -1,0 +1,76 @@
+{
+    "case1_corroboration": {
+        "name": "Real GDP Growth FY2024-25 Corroboration",
+        "description": "RBI FY24-25 6.5%, IMF 6.5% - real facts with same value",
+        "fact_a": {
+            "entity": "India",
+            "attribute": "Real GDP Growth",
+            "value": 6.5,
+            "unit": "percent",
+            "period": "FY2024-25",
+            "source_doc": "RBI"
+        },
+        "fact_b": {
+            "entity": "India",
+            "attribute": "Real GDP Growth",
+            "value": 6.5,
+            "unit": "percent",
+            "period": "FY2024-25",
+            "source_doc": "IMF"
+        }
+    },
+    "case2_contradiction": {
+        "name": "Current Account Deficit FY24-25 Contradiction",
+        "description": "RBI 1.3%, IMF 0.6% - real facts with different values",
+        "fact_a": {
+            "entity": "India",
+            "attribute": "Current Account Deficit",
+            "value": 1.3,
+            "unit": "percent of GDP",
+            "period": "FY24-25",
+            "source_doc": "RBI"
+        },
+        "fact_b": {
+            "entity": "India",
+            "attribute": "Current Account Deficit",
+            "value": 0.6,
+            "unit": "percent of GDP",
+            "period": "FY24-25",
+            "source_doc": "IMF"
+        }
+    },
+    "case3_reconciliation": {
+        "name": "Real GDP Growth FY25 Reconciliation",
+        "description": "Economic Survey 6.4% vs RBI/IMF 6.5% - partial overlap",
+        "fact_a": {
+            "entity": "India",
+            "attribute": "Real GDP Growth",
+            "value": 6.4,
+            "unit": "percent",
+            "period": "FY25",
+            "source_doc": "Economic Survey"
+        },
+        "fact_b": {
+            "entity": "India",
+            "attribute": "Real GDP Growth",
+            "value": 6.5,
+            "unit": "percent",
+            "period": "FY2024-25",
+            "source_doc": "RBI"
+        }
+    },
+    "case4_failure": {
+        "name": "Chart-embedded Numbers Failure Case",
+        "description": "Chart with embedded numbers that cannot be properly extracted",
+        "fact_a": {
+            "entity": "India",
+            "attribute": "Real GDP Growth",
+            "value": 6.5,
+            "unit": "percent",
+            "period": "FY2024-25",
+            "source_doc": "Economic Survey Chart"
+        },
+        "fact_b": null,
+        "error_case": "Chart embedded numbers in PDF"
+    }
+}

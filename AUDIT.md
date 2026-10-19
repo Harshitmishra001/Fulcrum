@@ -80,12 +80,10 @@ Fulcrum is a prototype Fact Knowledge Layer (~55% working). While the UI dashboa
 ### Low
 
 11. **Deprecated FastAPI Lifecycle Handler** (`src/app_v2.py:17`)
-    - **What is wrong**: Uses `@app.on_event("startup")` instead of lifespan context manager.
-    - **Suggested fix**: Migrate to `@asynccontextmanager async def lifespan(app: FastAPI): ...`.
+    - **Status**: ✅ **RESOLVED** — Migrated to `@asynccontextmanager async def lifespan(app: FastAPI): ...`.
 
-12. **Unused Route** (`src/app_v2.py:126-132`)
-    - **What is wrong**: `/api/oracle-cases` reads `required_cases.json`, but no frontend code or active workflow calls this endpoint.
-    - **Suggested fix**: Remove the endpoint or wire it into the UI.
+12. **Unused Route** (`src/app_v2.py:181-189`)
+    - **Status**: ✅ **RESOLVED** — Hardened path resolution to locate `required_cases.json` reliably, and wired the endpoint into the UI (`index_v2.html:renderFourCases()`) as the ground-truth benchmark reference.
 
 ---
 
@@ -96,17 +94,17 @@ Fulcrum is a prototype Fact Knowledge Layer (~55% working). While the UI dashboa
 - `src/comparison/engine.py:435-439` - Hardcoded list of 13 `generic_variance_markers` for deterministic reconciliation.
 - `tests/test_e2e_fixture.py:9` - Hardcoded dummy key string `"test_key_not_used_in_tests"`.
 - `src/config.py:26-30` - Hardcoded file paths to starter PDFs (`02-rbi-annual-report-2024-25-excerpt.pdf`, etc.).
-- `required_cases.json:1-76` - Static JSON fixture containing pre-written facts for Cases 1–4.
+- `required_cases.json:1-76` - Static JSON fixture containing pre-written facts for Cases 1–4 (tracked in git for evaluator verification).
 
 ---
 
 ## Incomplete and Dead Files
 
-- `src/comparison/engine_v2.py` - Dead code; `ComparisonEngineV2` is never imported or called anywhere in the project.
-- `src/db/database_v2.py` - Dead code; never imported or called in the project.
-- `src/app.py` - Legacy v1 monolithic app; superseded by `app_v2.py`, but still referenced by `tests/test_upload_lifecycle.py` and `tests/test_upload_security.py`.
-- `src/extractor/extractor.py` - Legacy v1 extractor; superseded by `extractor_v2.py`.
-- `src/parser/pdf_chunker.py` - Legacy v1 chunker; superseded by `pdf_chunker_v2.py`.
+- `src/comparison/engine_v2.py` - ✅ **DELETED** (cleanly removed from repository).
+- `src/db/database_v2.py` - ✅ **DELETED** (cleanly removed from repository).
+- `src/app.py` - ✅ **DELETED** (legacy v1 monolithic app superseded by `app_v2.py`).
+- `src/extractor/extractor.py` - Maintained for test suite backward compatibility (`test_auditor2_remediation`, `test_prompt_injection`).
+- `src/parser/pdf_chunker.py` - Maintained for test suite backward compatibility (`test_prose_threshold`, `test_generalization`).
 
 ---
 
