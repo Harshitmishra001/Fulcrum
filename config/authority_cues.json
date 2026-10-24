@@ -1,0 +1,56 @@
+{
+  "description": "Configurable domain cues and sovereign scope vocabulary for entity resolution.",
+  "monetary_cues": [
+    "repo rate",
+    "monetary policy",
+    "inflation target",
+    "liquidity",
+    "mpc",
+    "reserve money",
+    "policy rate",
+    "policy interest rates",
+    "interest rate",
+    "interest rates",
+    "reverse repo",
+    "standing deposit facility"
+  ],
+  "fiscal_cues": [
+    "fiscal deficit",
+    "budget",
+    "expenditure",
+    "revenue",
+    "subsidy",
+    "tax",
+    "gst",
+    "borrowing",
+    "disinvestment",
+    "capital outlay"
+  ],
+  "sovereign_scopes": {
+    "foreign": [
+      "federal reserve",
+      "bank of england",
+      "ecb",
+      "treasury",
+      "united states",
+      "united kingdom",
+      "fed",
+      "fomc",
+      "us",
+      "uk",
+      "eurozone"
+    ],
+    "domestic": [
+      "india",
+      "indian",
+      "rbi",
+      "rupee",
+      "inr",
+      "crore",
+      "lakh",
+      "delhi",
+      "mumbai",
+      "union budget"
+    ]
+  }
+}

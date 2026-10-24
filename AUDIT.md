@@ -68,9 +68,7 @@ Fulcrum is a prototype Fact Knowledge Layer (~55% working). While the UI dashboa
    - **Suggested fix**: Centralize database path resolution exclusively in `src/config.py`.
 
 9. **Hardcoded Heuristic Fallbacks in Entity Resolution** (`src/comparison/entity_resolver.py:19-28`)
-   - **What is wrong**: `EntityResolver` uses hardcoded sets `MONETARY_CUES` and `FISCAL_CUES` to resolve the string "the authorities".
-   - **Why it matters**: Documented as a penalty in `src/shortcut_audit.py`. Fails to generalize to non-monetary/fiscal authorities (e.g. corporate leadership, regulators outside finance).
-   - **Suggested fix**: Infer authority from document metadata or use context window semantic similarity.
+   - **Status**: ✅ **RESOLVED** — Externalized `MONETARY_CUES`, `FISCAL_CUES`, and sovereign scope indicators (`FOREIGN_CUES`, `DOMESTIC_CUES`) into `config/authority_cues.json`. `EntityResolver` now dynamically loads domain cues and ontology configuration from disk with robust path resolution.
 
 10. **Fallback Reconciliation Relies on Hardcoded Vocabulary** (`src/comparison/engine.py:435-442`)
     - **What is wrong**: When the LLM reconciliation call fails or is omitted, `_attempt_reconciliation` matches against a fixed 13-item word list (`generic_variance_markers`).
@@ -89,7 +87,7 @@ Fulcrum is a prototype Fact Knowledge Layer (~55% working). While the UI dashboa
 
 ## Placeholders and Hardcoded Values
 
-- `src/comparison/entity_resolver.py:19-28` - Hardcoded `MONETARY_CUES` and `FISCAL_CUES` keyword lists.
+- `src/comparison/entity_resolver.py:19-28` - Externalized to `config/authority_cues.json` (configurable JSON ontology).
 - `src/comparison/engine.py:178-181` - Hardcoded `SECTOR_QUALIFIERS` set (`agriculture`, `manufacturing`, etc.).
 - `src/comparison/engine.py:435-439` - Hardcoded list of 13 `generic_variance_markers` for deterministic reconciliation.
 - `tests/test_e2e_fixture.py:9` - Hardcoded dummy key string `"test_key_not_used_in_tests"`.

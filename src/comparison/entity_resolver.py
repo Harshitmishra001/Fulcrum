@@ -1,11 +1,35 @@
 import re
 import os
 import json
-from typing import Dict, Any, Tuple, Optional, List
+from pathlib import Path
+from typing import Dict, Any, Tuple, Optional, List, Set
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
 _SHARED_SENTENCE_MODEL = None
+
+CONFIG_DIR = Path(__file__).resolve().parent.parent.parent / "config"
+
+DEFAULT_MONETARY_CUES = {
+    "repo rate", "monetary policy", "inflation target", "liquidity",
+    "mpc", "reserve money", "policy rate", "policy interest rates", "interest rate", "interest rates",
+    "reverse repo", "standing deposit facility"
+}
+
+DEFAULT_FISCAL_CUES = {
+    "fiscal deficit", "budget", "expenditure", "revenue", "subsidy",
+    "tax", "gst", "borrowing", "disinvestment", "capital outlay"
+}
+
+DEFAULT_FOREIGN_CUES = (
+    "federal reserve", "bank of england", "ecb", "treasury", "united states",
+    "united kingdom", "fed", "fomc", "us", "uk", "eurozone"
+)
+
+DEFAULT_DOMESTIC_CUES = (
+    "india", "indian", "rbi", "rupee", "inr", "crore", "lakh", "delhi", "mumbai", "union budget"
+)
+
 
 class EntityResolver:
     """
@@ -14,36 +38,49 @@ class EntityResolver:
     2. Embedding cosine similarity (SentenceTransformer) with threshold 0.85.
     Special handling for 'the authorities' (Decision 19):
        - 3-sentence window keyword vote between monetary and fiscal cues.
+       - Configurable via config/authority_cues.json and config/entity_aliases.json.
     """
 
-    MONETARY_CUES = {
-        "repo rate", "monetary policy", "inflation target", "liquidity",
-        "mpc", "reserve money", "policy rate", "policy interest rates", "interest rate", "interest rates",
-        "reverse repo", "standing deposit facility"
-    }
-
-    FISCAL_CUES = {
-        "fiscal deficit", "budget", "expenditure", "revenue", "subsidy",
-        "tax", "gst", "borrowing", "disinvestment", "capital outlay"
-    }
-
-    KNOWN_ALIASES = {}
+    MONETARY_CUES: Set[str] = set(DEFAULT_MONETARY_CUES)
+    FISCAL_CUES: Set[str] = set(DEFAULT_FISCAL_CUES)
+    FOREIGN_CUES: Tuple[str, ...] = DEFAULT_FOREIGN_CUES
+    DOMESTIC_CUES: Tuple[str, ...] = DEFAULT_DOMESTIC_CUES
+    KNOWN_ALIASES: Dict[str, str] = {}
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         from src.shortcut_audit import log_penalty
         
-        # Load externalized aliases config
-        config_path = os.path.join("config", "entity_aliases.json")
+        # 1. Load externalized aliases config
+        alias_path = CONFIG_DIR / "entity_aliases.json"
+        if not alias_path.exists():
+            alias_path = Path("config") / "entity_aliases.json"
+
         try:
-            with open(config_path, "r", encoding="utf-8-sig") as f:
+            with open(alias_path, "r", encoding="utf-8-sig") as f:
                 EntityResolver.KNOWN_ALIASES = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             log_penalty("entity_resolver", "alias_fallback", "Entity aliases config missing, falling back to empty dict.")
             EntityResolver.KNOWN_ALIASES = {}
 
-        # Log penalties for our remaining hardcoded heuristic lists
-        log_penalty("entity_resolver", "hardcode", "Hardcoded MONETARY_CUES heuristics used instead of an ontology.")
-        log_penalty("entity_resolver", "hardcode", "Hardcoded FISCAL_CUES heuristics used instead of an ontology.")
+        # 2. Load externalized authority cues config
+        cues_path = CONFIG_DIR / "authority_cues.json"
+        if not cues_path.exists():
+            cues_path = Path("config") / "authority_cues.json"
+
+        try:
+            with open(cues_path, "r", encoding="utf-8-sig") as f:
+                cues_data = json.load(f)
+                EntityResolver.MONETARY_CUES = set(cues_data.get("monetary_cues", DEFAULT_MONETARY_CUES))
+                EntityResolver.FISCAL_CUES = set(cues_data.get("fiscal_cues", DEFAULT_FISCAL_CUES))
+                scopes = cues_data.get("sovereign_scopes", {})
+                EntityResolver.FOREIGN_CUES = tuple(scopes.get("foreign", DEFAULT_FOREIGN_CUES))
+                EntityResolver.DOMESTIC_CUES = tuple(scopes.get("domestic", DEFAULT_DOMESTIC_CUES))
+        except (FileNotFoundError, json.JSONDecodeError):
+            log_penalty("entity_resolver", "hardcode", "Authority cues config missing, falling back to hardcoded defaults.")
+            EntityResolver.MONETARY_CUES = set(DEFAULT_MONETARY_CUES)
+            EntityResolver.FISCAL_CUES = set(DEFAULT_FISCAL_CUES)
+            EntityResolver.FOREIGN_CUES = DEFAULT_FOREIGN_CUES
+            EntityResolver.DOMESTIC_CUES = DEFAULT_DOMESTIC_CUES
 
         global _SHARED_SENTENCE_MODEL
         if _SHARED_SENTENCE_MODEL is None:
@@ -60,8 +97,8 @@ class EntityResolver:
         """
         Decision 19 (Hardened for Critic 2.2):
         3-sentence window keyword vote with sovereign scope awareness.
-        - Checks whether context mentions Indian vs foreign sovereigns.
-        - Maps to RBI/GoI only when Indian sovereign context is present.
+        - Checks whether context mentions domestic vs foreign sovereigns.
+        - Maps to RBI/GoI only when domestic sovereign context is present.
         - Maps to National Central Bank / National Government for international/foreign contexts.
         - Tied or zero -> "AMBIGUOUS" (0.40, falls below 0.65 threshold)
         """
@@ -69,18 +106,15 @@ class EntityResolver:
         monetary_hits = sum(1 for cue in self.MONETARY_CUES if cue in text_lower)
         fiscal_hits = sum(1 for cue in self.FISCAL_CUES if cue in text_lower)
 
-        foreign_cues = ("federal reserve", "bank of england", "ecb", "treasury", "united states", "united kingdom", "fed", "fomc", "us", "uk", "eurozone")
-        indian_cues = ("india", "indian", "rbi", "rupee", "inr", "crore", "lakh", "delhi", "mumbai", "union budget")
-        
-        is_foreign = any(fc in text_lower for fc in foreign_cues)
-        is_indian = any(ic in text_lower for ic in indian_cues)
+        is_foreign = any(fc in text_lower for fc in self.FOREIGN_CUES)
+        is_domestic = any(ic in text_lower for ic in self.DOMESTIC_CUES)
 
         if monetary_hits > fiscal_hits:
-            if is_foreign or not is_indian:
+            if is_foreign or not is_domestic:
                 return "National Central Bank", 0.65
             return "Reserve Bank of India", 0.70
         elif fiscal_hits > monetary_hits:
-            if is_foreign or not is_indian:
+            if is_foreign or not is_domestic:
                 return "National Government", 0.65
             return "Government of India", 0.70
         else:
