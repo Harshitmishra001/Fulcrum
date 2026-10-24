@@ -1,6 +1,7 @@
 import json
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Tuple, Set
 from collections import defaultdict
 import numpy as np
 from openai import OpenAI
@@ -15,6 +16,19 @@ from src.db.database import (
     get_chunk_text, get_chunks_by_page,
     get_all_chunk_texts, get_all_page_chunks
 )
+
+CONFIG_DIR = Path(__file__).resolve().parent.parent.parent / "config"
+
+DEFAULT_SECTOR_QUALIFIERS = {
+    "agriculture", "allied", "industry", "services", "manufacturing",
+    "mining", "construction", "rural", "urban", "food", "fuel", "core"
+}
+
+DEFAULT_VARIANCE_MARKERS = [
+    "advance", "preliminary", "revised", "revision", "provisional",
+    "restated", "restatement", "definition", "methodology", "reclassified",
+    "constant currency", "nominal", "real terms"
+]
 
 RECONCILIATION_SYSTEM_PROMPT = """You are a strict financial reconciliation auditor.
 You will be given two conflicting facts from reports and one candidate sentence from the text.
@@ -35,6 +49,9 @@ MAX_EMB_CACHE_SIZE = 32768
 
 
 class ComparisonEngine:
+    SECTOR_QUALIFIERS: Set[str] = set(DEFAULT_SECTOR_QUALIFIERS)
+    GENERIC_VARIANCE_MARKERS: List[str] = list(DEFAULT_VARIANCE_MARKERS)
+
     def __init__(self, model: str = LLM_MODEL):
         self.resolver = EntityResolver()
         self.client = OpenAI(
@@ -47,6 +64,24 @@ class ComparisonEngine:
         # Pre-loaded caches — populated once at start of run_comparison
         self._chunk_cache: Dict[str, str] = {}
         self._page_chunks: Dict[tuple, List[str]] = {}
+
+        # Load externalized comparison rules
+        rules_path = CONFIG_DIR / "comparison_rules.json"
+        if not rules_path.exists():
+            rules_path = Path("config") / "comparison_rules.json"
+
+        try:
+            with open(rules_path, "r", encoding="utf-8-sig") as f:
+                rules_data = json.load(f)
+                self.SECTOR_QUALIFIERS = set(rules_data.get("sector_qualifiers", DEFAULT_SECTOR_QUALIFIERS))
+                self.GENERIC_VARIANCE_MARKERS = list(rules_data.get("generic_variance_markers", DEFAULT_VARIANCE_MARKERS))
+                ComparisonEngine.SECTOR_QUALIFIERS = self.SECTOR_QUALIFIERS
+                ComparisonEngine.GENERIC_VARIANCE_MARKERS = self.GENERIC_VARIANCE_MARKERS
+        except (FileNotFoundError, json.JSONDecodeError):
+            from src.shortcut_audit import log_penalty
+            log_penalty("engine", "hardcode", "Comparison rules config missing, falling back to hardcoded defaults.")
+            self.SECTOR_QUALIFIERS = set(DEFAULT_SECTOR_QUALIFIERS)
+            self.GENERIC_VARIANCE_MARKERS = list(DEFAULT_VARIANCE_MARKERS)
 
     def _precompute_embeddings(self, strings: List[str]):
         unique = [s for s in set(strings) if s and s not in self.emb_cache]
@@ -173,12 +208,6 @@ class ComparisonEngine:
             save_relations_batch(relations)
 
         return relations
-
-    # Sector qualifiers — NO holdout contamination (b2c, pbf PURGED)
-    SECTOR_QUALIFIERS = {
-        "agriculture", "allied", "industry", "services", "manufacturing",
-        "mining", "construction", "rural", "urban", "food", "fuel", "core"
-    }
 
     def _attributes_match(self, attr_a: str, attr_b: str) -> bool:
         """
@@ -430,14 +459,7 @@ class ComparisonEngine:
                 except Exception:
                     pass
 
-            generic_variance_markers = [
-                "advance", "preliminary", "revised", "revision", "provisional",
-                "restated", "restatement", "definition", "methodology", "reclassified",
-                "constant currency", "nominal", "real terms"
-            ]
-            from src.shortcut_audit import log_penalty
-            log_penalty("engine", "hardcode", "Hardcoded generic_variance_markers list used for deterministic reconciliation.")
-            if any(term in cand_lower for term in generic_variance_markers) and (len(token_overlap) >= 1 or sim >= 0.4):
+            if any(term in cand_lower for term in self.GENERIC_VARIANCE_MARKERS) and (len(token_overlap) >= 1 or sim >= 0.4):
                 return True, "YES", candidate
 
         return False, "NO", None

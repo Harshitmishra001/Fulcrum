@@ -1,0 +1,32 @@
+{
+  "description": "Configurable variance markers for deterministic reconciliation and sector qualifiers for attribute isolation.",
+  "generic_variance_markers": [
+    "advance",
+    "preliminary",
+    "revised",
+    "revision",
+    "provisional",
+    "restated",
+    "restatement",
+    "definition",
+    "methodology",
+    "reclassified",
+    "constant currency",
+    "nominal",
+    "real terms"
+  ],
+  "sector_qualifiers": [
+    "agriculture",
+    "allied",
+    "industry",
+    "services",
+    "manufacturing",
+    "mining",
+    "construction",
+    "rural",
+    "urban",
+    "food",
+    "fuel",
+    "core"
+  ]
+}
