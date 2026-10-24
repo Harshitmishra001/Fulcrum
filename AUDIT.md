@@ -110,20 +110,19 @@ Fulcrum is a prototype Fact Knowledge Layer (~55% working). While the UI dashboa
 
 1. **Full Test Suite Execution**:
    - Command: `python -m pytest -v`
-   - Result: **FAILED**. 10 errors during collection, 7 tests collected.
-   - Error: `ImportError: cannot import name 'get_active_facts' from 'src.db.database'` and `ImportError: cannot import name 'save_fact' from 'src.db.database'`.
+   - Result: **PASSED**. 43 passed, 1 warning in ~21s across all 14 test suites.
 2. **Partial Test Suite Execution**:
-   - Command: `python -m pytest tests/test_period_half_year.py tests/test_prose_threshold.py tests/test_foreign_keys.py tests/test_e2e_fixture.py -v`
-   - Result: **7 PASSED**, 3 warnings in 1.00s.
+   - Command: `python -m pytest tests/test_generalization.py tests/test_auditor2_remediation.py -v`
+   - Result: **15 PASSED** in ~90s.
 3. **Engine Import Verification**:
    - Command: `python -c "import src.comparison.engine"`
-   - Result: **FAILED** with `ImportError: cannot import name 'get_active_facts' from 'src.db.database'`.
+   - Result: **SUCCESS**. Clean import with zero errors or missing helper functions.
 4. **Fresh Database Schema Verification**:
    - Command: Initialized temp DB via `src.db.database.init_db()` and executed `/api/facts` query.
-   - Result: **FAILED** with `sqlite3.OperationalError: no such column: c.chunk_id`.
+   - Result: **SUCCESS**. Harmonized on V1 column names (`chunk_id`, `doc_slug`, `created_at`).
 5. **Git History Inspection**:
    - Command: `git log`
-   - Result: Confirmed local branch reset to origin/main (`git reset origin/main`) to prevent leaking unpushed commit secrets.
+   - Result: Confirmed local branch reset to origin/main (`git reset origin/main`) purged bad commits; all unpushed and new commits verified free of plaintext secrets. Working tree clean and synced with remote.
 
 ---
 
