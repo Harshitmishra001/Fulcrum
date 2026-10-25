@@ -33,9 +33,14 @@ uvicorn src.app_v2:app --reload
 Navigate to `http://localhost:8000` in your browser. You can upload PDFs via the UI and inspect the extracted facts and how they relate to each other.
 
 ### 5. Running Tests
-To run tests without needing a live API key:
+Fulcrum includes a full test suite of 43 automated tests across 14 test suites covering period normalization, entity resolution, tolerance thresholds, database integrity, prompt injection resistance, and upload security. All tests run locally without requiring a live API key:
 ```bash
-pytest tests/test_e2e_fixture.py
+# Run all 43 tests across the entire test suite
+pytest -v
+
+# Or run specific test modules
+pytest tests/test_e2e_fixture.py -v
+pytest tests/test_auditor3_remediation.py -v
 ```
 
 ## Screenshots
@@ -80,6 +85,8 @@ Fulcrum processes documents through a clear, multi-step pipeline:
 
 ### Important Decisions & Trade-offs
 - **Single AI Model:** I used a single capable model (GPT-4o-mini) for all reasoning steps instead of trying to chain multiple smaller models together. This made the results much more consistent and easier to debug.
+- **Externalized Configuration:** Rather than hardcoding domain keywords or agency aliases in code, domain heuristics are externalized into editable JSON files in the `config/` directory (`authority_cues.json`, `comparison_rules.json`, and `entity_aliases.json`).
+- **Upload Validation & Hardening:** File uploads via `/api/upload` enforce `%PDF-` magic-byte checks, a 50MB size ceiling, and structural parsing verification to fail fast with clean HTTP 400 errors instead of failing silently in background tasks.
 - **Simple, Reliable UI:** I chose to build the UI with plain HTML and JavaScript rather than a complex framework like React. This ensures the app is easy to run and won't fail due to complex setup tools during a demo.
 - **Strict Evidence Rules:** If a fact doesn't have an exact source quote from the PDF, it is dropped. I prioritized honesty—admitting a fact is "unresolved" is better than letting the AI make up an explanation.
 - **Database Choice:** I used SQLite (a built-in relational database) instead of a complex Graph Database. It's much easier to set up, requires no extra servers, and easily handles caching so we don't waste API credits re-processing the same document.
