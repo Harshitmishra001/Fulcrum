@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Optional
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -143,6 +144,54 @@ def get_facts():
             f["evidence_type"] = "table" if "table" in cid else "prose"
     conn.close()
     return {"facts": facts}
+
+
+@app.get("/api/facts/search")
+def search_facts(
+    entity: Optional[str] = None,
+    attribute: Optional[str] = None,
+    doc: Optional[str] = None,
+    assertion_type: Optional[str] = None,
+    limit: int = 50
+):
+    conn = sqlite3.connect(get_current_db_path())
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    query = """
+        SELECT f.*, c.text as chunk_text
+        FROM facts f
+        LEFT JOIN chunks c ON f.chunk_id = c.chunk_id
+        WHERE f.is_active = 1
+    """
+    params = []
+
+    if entity:
+        query += " AND LOWER(f.entity) LIKE LOWER(?)"
+        params.append(f"%{entity}%")
+    if attribute:
+        query += " AND LOWER(f.attribute) LIKE LOWER(?)"
+        params.append(f"%{attribute}%")
+    if doc:
+        query += " AND LOWER(f.source_doc) LIKE LOWER(?)"
+        params.append(f"%{doc}%")
+    if assertion_type:
+        query += " AND LOWER(f.assertion_type) = LOWER(?)"
+        params.append(assertion_type)
+
+    query += " ORDER BY f.source_doc, f.source_page LIMIT ?"
+    params.append(limit)
+
+    cur.execute(query, tuple(params))
+    facts = [dict(r) for r in cur.fetchall()]
+    for f in facts:
+        if "evidence_type" not in f or not f.get("evidence_type"):
+            cid = str(f.get("chunk_id") or "")
+            f["evidence_type"] = "table" if "table" in cid else "prose"
+
+    conn.close()
+    return {"total": len(facts), "facts": facts}
+
 
 
 @app.get("/api/relations")

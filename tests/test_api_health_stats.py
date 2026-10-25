@@ -29,3 +29,24 @@ def test_api_stats_endpoint():
     assert "facts_by_document" in data
     assert isinstance(data["relations_by_type"], dict)
     assert isinstance(data["facts_by_document"], dict)
+
+def test_api_facts_search():
+    """Verifies that GET /api/facts/search supports entity and attribute filtering."""
+    # Unfiltered search
+    res_all = client.get("/api/facts/search?limit=10")
+    assert res_all.status_code == 200
+    assert "facts" in res_all.json()
+    assert res_all.json()["total"] <= 10
+
+    # Search with entity filter (case-insensitive substring)
+    res_entity = client.get("/api/facts/search?entity=india")
+    assert res_entity.status_code == 200
+    for fact in res_entity.json()["facts"]:
+        assert "india" in fact["entity"].lower()
+
+    # Search with non-existent entity returns empty list cleanly
+    res_empty = client.get("/api/facts/search?entity=nonexistent_xyz_entity_99")
+    assert res_empty.status_code == 200
+    assert res_empty.json()["total"] == 0
+    assert len(res_empty.json()["facts"]) == 0
+
