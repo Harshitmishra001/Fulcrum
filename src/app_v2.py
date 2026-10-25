@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 from typing import Optional
+import csv
+import io
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 import hashlib
 import os
@@ -311,4 +313,77 @@ def get_stats():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to calculate stats: {str(e)}")
+
+
+@app.get("/api/export/facts")
+def export_facts(format: str = "csv"):
+    conn = sqlite3.connect(get_current_db_path())
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT f.id, f.entity, f.attribute, f.value, f.unit, 
+               f.period_normalized, f.assertion_type, f.source_doc, 
+               f.source_page, f.source_quote, f.extraction_confidence, f.created_at
+        FROM facts f
+        WHERE f.is_active = 1
+        ORDER BY f.source_doc, f.source_page
+    """)
+    facts = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    if format.lower() == "json":
+        return JSONResponse(
+            content={"facts": facts},
+            headers={"Content-Disposition": 'attachment; filename="fulcrum_facts.json"'}
+        )
+
+    output = io.StringIO()
+    fieldnames = [
+        "id", "entity", "attribute", "value", "unit", 
+        "period_normalized", "assertion_type", "source_doc", 
+        "source_page", "source_quote", "extraction_confidence", "created_at"
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+    writer.writeheader()
+    for row in facts:
+        writer.writerow(row)
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="fulcrum_facts.csv"'}
+    )
+
+
+@app.get("/api/export/relations")
+def export_relations(format: str = "csv"):
+    conn = sqlite3.connect(get_current_db_path())
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM relations ORDER BY created_at DESC")
+    relations = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    if format.lower() == "json":
+        return JSONResponse(
+            content={"relations": relations},
+            headers={"Content-Disposition": 'attachment; filename="fulcrum_relations.json"'}
+        )
+
+    output = io.StringIO()
+    fieldnames = [
+        "id", "fact_a_id", "fact_b_id", "relation_type", 
+        "explanation", "evidence_quote", "entity_resolution_confidence", "created_at"
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+    writer.writeheader()
+    for row in relations:
+        writer.writerow(row)
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="fulcrum_relations.csv"'}
+    )
+
 
