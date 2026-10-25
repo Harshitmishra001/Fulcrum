@@ -189,3 +189,77 @@ def get_oracle_cases():
             return json.load(f)
     except Exception:
         return {}
+
+
+@app.get("/api/health")
+def get_health():
+    db_path = get_current_db_path()
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM facts WHERE is_active = 1")
+        active_facts = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM relations")
+        total_relations = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM extraction_failures")
+        total_failures = cur.fetchone()[0]
+        conn.close()
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "active_facts": active_facts,
+            "total_relations": total_relations,
+            "total_failures": total_failures
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "disconnected", "error": str(e)}
+        )
+
+
+@app.get("/api/stats")
+def get_stats():
+    db_path = get_current_db_path()
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        # Breakdown of relations by type
+        cur.execute("""
+            SELECT relation_type, COUNT(*) as count 
+            FROM relations 
+            GROUP BY relation_type
+        """)
+        relations_by_type = {row["relation_type"]: row["count"] for row in cur.fetchall()}
+
+        # Breakdown of facts by source document
+        cur.execute("""
+            SELECT source_doc, COUNT(*) as count 
+            FROM facts 
+            WHERE is_active = 1 
+            GROUP BY source_doc 
+            ORDER BY count DESC
+        """)
+        facts_by_doc = {row["source_doc"]: row["count"] for row in cur.fetchall()}
+
+        # Total counts
+        cur.execute("SELECT COUNT(*) FROM facts WHERE is_active = 1")
+        total_facts = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM relations")
+        total_relations = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM extraction_failures")
+        total_failures = cur.fetchone()[0]
+
+        conn.close()
+        return {
+            "total_facts": total_facts,
+            "total_relations": total_relations,
+            "total_failures": total_failures,
+            "relations_by_type": relations_by_type,
+            "facts_by_document": facts_by_doc
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to calculate stats: {str(e)}")
+
