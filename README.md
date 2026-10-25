@@ -47,8 +47,13 @@ pytest tests/test_api_health_stats.py -v
 - `GET /api/health` — Returns system operational status, database connectivity, and active row totals.
 - `GET /api/stats` — Breakdown of facts by source document and relations by type (`corroboration`, `contradiction`, `reconciliation`).
 - `GET /api/facts/search?entity=...&attribute=...` — Filter and query active facts.
+- `GET /api/export/facts?format=csv|json` — Export verified facts as CSV or JSON download.
+- `GET /api/export/relations?format=csv|json` — Export cross-document relations as CSV or JSON download.
 - `GET /api/oracle-cases` — Ground-truth benchmark fixture for the 4 core cases.
 - `POST /api/upload` — Ingest, validate, and extract facts from new PDF reports.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for architectural details, testing invariants, and developer guidelines.
+
 
 
 ## Screenshots

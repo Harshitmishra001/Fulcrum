@@ -164,21 +164,41 @@
         <h1 class="text-3xl font-serif-title font-semibold text-slate-900">Facts Repository</h1>
         <p class="text-sm text-slate-500 mt-2 font-serif italic">Ground-truth data points extracted from sources.</p>
       </div>
-      <div class="text-xs font-mono text-slate-400 uppercase tracking-widest" id="fact-count">0 facts</div>
+      <div class="flex items-center gap-2.5">
+        <a href="/api/export/facts?format=csv" download class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono border border-slate-200 rounded hover:border-slate-400 text-slate-600 transition-colors" title="Export facts to CSV">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Export CSV
+        </a>
+        <a href="/api/export/facts?format=json" download class="inline-flex items-center px-2 py-1 text-xs font-mono border border-slate-200 rounded hover:border-slate-400 text-slate-600 transition-colors" title="Export facts to JSON">
+          JSON
+        </a>
+        <div class="text-xs font-mono text-slate-400 uppercase tracking-widest ml-2" id="fact-count">0 facts</div>
+      </div>
     </div>
     <div id="facts-container" class="space-y-0"></div>
   </div>
 
   <!-- VIEW: RELATIONS LIST -->
   <div id="view-relations" class="app-view hidden max-w-4xl mx-auto space-y-6">
-    <div class="border-b border-slate-200 pb-6 mb-8">
-      <h1 class="text-3xl font-serif-title font-semibold text-slate-900">Investigations Engine</h1>
-      <p class="text-sm text-slate-500 mt-2 font-serif italic">Cross-document verification pairs.</p>
-      <div class="flex gap-4 mt-6" id="relation-filters">
-         <button onclick="filterRelations('all')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-brand-accentGreen font-bold border-b border-brand-accentGreen pb-1">All</button>
-         <button onclick="filterRelations('corroboration')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent">Corroborations</button>
-         <button onclick="filterRelations('contradiction')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent">Contradictions</button>
-         <button onclick="filterRelations('reconciled')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent">Reconciled</button>
+    <div class="border-b border-slate-200 pb-6 mb-8 flex justify-between items-end">
+      <div>
+        <h1 class="text-3xl font-serif-title font-semibold text-slate-900">Investigations Engine</h1>
+        <p class="text-sm text-slate-500 mt-2 font-serif italic">Cross-document verification pairs.</p>
+        <div class="flex gap-4 mt-6" id="relation-filters">
+           <button onclick="filterRelations('all')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-brand-accentGreen font-bold border-b border-brand-accentGreen pb-1">All</button>
+           <button onclick="filterRelations('corroboration')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent">Corroborations</button>
+           <button onclick="filterRelations('contradiction')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent">Contradictions</button>
+           <button onclick="filterRelations('reconciled')" class="rel-filter text-[11px] font-mono uppercase tracking-widest text-slate-400 hover:text-slate-800 transition-colors pb-1 border-b border-transparent">Reconciled</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 mb-1">
+        <a href="/api/export/relations?format=csv" download class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono border border-slate-200 rounded hover:border-slate-400 text-slate-600 transition-colors" title="Export relations to CSV">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Export CSV
+        </a>
+        <a href="/api/export/relations?format=json" download class="inline-flex items-center px-2 py-1 text-xs font-mono border border-slate-200 rounded hover:border-slate-400 text-slate-600 transition-colors" title="Export relations to JSON">
+          JSON
+        </a>
       </div>
     </div>
     <div id="relations-container" class="space-y-0"></div>
