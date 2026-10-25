@@ -33,15 +33,23 @@ uvicorn src.app_v2:app --reload
 Navigate to `http://localhost:8000` in your browser. You can upload PDFs via the UI and inspect the extracted facts and how they relate to each other.
 
 ### 5. Running Tests
-Fulcrum includes a full test suite of 43 automated tests across 14 test suites covering period normalization, entity resolution, tolerance thresholds, database integrity, prompt injection resistance, and upload security. All tests run locally without requiring a live API key:
+Fulcrum includes a full test suite of 46 automated tests across 15 test suites covering period normalization, entity resolution, tolerance thresholds, database integrity, prompt injection resistance, upload security, and API health/stats monitoring. All tests run locally without requiring a live API key:
 ```bash
-# Run all 43 tests across the entire test suite
+# Run all 46 tests across the entire test suite
 pytest -v
 
 # Or run specific test modules
 pytest tests/test_e2e_fixture.py -v
-pytest tests/test_auditor3_remediation.py -v
+pytest tests/test_api_health_stats.py -v
 ```
+
+### 6. API Endpoints
+- `GET /api/health` — Returns system operational status, database connectivity, and active row totals.
+- `GET /api/stats` — Breakdown of facts by source document and relations by type (`corroboration`, `contradiction`, `reconciliation`).
+- `GET /api/facts/search?entity=...&attribute=...` — Filter and query active facts.
+- `GET /api/oracle-cases` — Ground-truth benchmark fixture for the 4 core cases.
+- `POST /api/upload` — Ingest, validate, and extract facts from new PDF reports.
+
 
 ## Screenshots
 

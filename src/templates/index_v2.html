@@ -132,6 +132,11 @@
 <!-- Action Buttons and User Status -->
 <div class="flex items-center gap-6">
 <div class="flex items-center gap-5">
+<div id="system-health-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-emerald-50 text-emerald-700 border border-emerald-200">
+  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+  <span id="health-status-text">System Live</span>
+</div>
+<span class="text-slate-300">|</span>
 <button onclick="switchView('upload')" class="text-sm font-serif-title italic text-slate-500 hover:text-slate-800 transition-colors">
                 Ingest PDF
 </button>
@@ -337,13 +342,14 @@
 
     async function loadData() {
       try {
-        const [fRes, rRes, eRes, oRes] = await Promise.all([
-          fetch('/api/facts'), fetch('/api/relations'), fetch('/api/failures'), fetch('/api/oracle-cases')
+        const [fRes, rRes, eRes, oRes, hRes] = await Promise.all([
+          fetch('/api/facts'), fetch('/api/relations'), fetch('/api/failures'), fetch('/api/oracle-cases'), fetch('/api/health')
         ]);
         const fData = await fRes.json();
         const rData = await rRes.json();
         const eData = await eRes.json();
         const oData = await oRes.json();
+        const hData = await hRes.json();
         
         facts = fData.facts || [];
         relations = rData.relations || [];
@@ -354,6 +360,12 @@
         facts.forEach(f => factsMap[f.id] = f);
         
         document.getElementById('fact-count').innerText = facts.length + ' facts';
+        if (hData && hData.status === 'healthy') {
+          const badgeEl = document.getElementById('health-status-text');
+          if (badgeEl) {
+            badgeEl.innerText = hData.active_facts + ' facts • ' + hData.total_relations + ' relations';
+          }
+        }
         document.getElementById('loading').style.display = 'none';
         
         renderFactsList(facts);
