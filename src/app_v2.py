@@ -25,16 +25,49 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Fulcrum Fact Verification Layer V2", lifespan=lifespan)
+tags_metadata = [
+    {
+        "name": "Ingestion",
+        "description": "Upload and process financial and macroeconomic PDF filings.",
+    },
+    {
+        "name": "Facts",
+        "description": "Query and filter grounded facts extracted with verbatim quotes.",
+    },
+    {
+        "name": "Relations",
+        "description": "Cross-document comparisons (corroborations, contradictions, reconciliations).",
+    },
+    {
+        "name": "Benchmark",
+        "description": "Required reference oracle cases for rubric verification.",
+    },
+    {
+        "name": "Export",
+        "description": "Export datasets as structured CSV or JSON downloads.",
+    },
+    {
+        "name": "System",
+        "description": "Health checks, database connectivity, and aggregate statistics.",
+    },
+]
+
+app = FastAPI(
+    title="Fulcrum Fact Verification Layer",
+    version="2.1.0",
+    description="High-integrity fact knowledge and verification layer for multi-document financial and macroeconomic reports.",
+    openapi_tags=tags_metadata,
+    lifespan=lifespan
+)
 templates = Jinja2Templates(directory="src/templates")
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def serve_ui(request: Request):
     return templates.TemplateResponse(request=request, name="index_v2.html")
 
 
-@app.post("/api/upload")
+@app.post("/api/upload", tags=["Ingestion"])
 async def upload_document(file: UploadFile = File(...)):
     # --- Input Validation ---
     if not file.filename or not file.filename.lower().endswith(".pdf"):
@@ -112,7 +145,7 @@ async def upload_document(file: UploadFile = File(...)):
         return {"job_id": job_id, "status": "pending", "doc_name": file.filename}
 
 
-@app.get("/api/job/{job_id}")
+@app.get("/api/job/{job_id}", tags=["Ingestion"])
 def get_job_status(job_id: str):
     conn = sqlite3.connect(get_current_db_path())
     cur = conn.cursor()
@@ -126,7 +159,7 @@ def get_job_status(job_id: str):
     return {"job_id": job_id, "status": row[0]}
 
 
-@app.get("/api/facts")
+@app.get("/api/facts", tags=["Facts"])
 def get_facts():
     conn = sqlite3.connect(get_current_db_path())
     conn.row_factory = sqlite3.Row
@@ -148,7 +181,7 @@ def get_facts():
     return {"facts": facts}
 
 
-@app.get("/api/facts/search")
+@app.get("/api/facts/search", tags=["Facts"])
 def search_facts(
     entity: Optional[str] = None,
     attribute: Optional[str] = None,
@@ -156,6 +189,9 @@ def search_facts(
     assertion_type: Optional[str] = None,
     limit: int = 50
 ):
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 500")
+
     conn = sqlite3.connect(get_current_db_path())
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -196,7 +232,7 @@ def search_facts(
 
 
 
-@app.get("/api/relations")
+@app.get("/api/relations", tags=["Relations"])
 def get_relations():
     conn = sqlite3.connect(get_current_db_path())
     conn.row_factory = sqlite3.Row
@@ -207,7 +243,7 @@ def get_relations():
     return {"relations": relations}
 
 
-@app.get("/api/failures")
+@app.get("/api/failures", tags=["Ingestion"])
 def get_failures():
     conn = sqlite3.connect(get_current_db_path())
     conn.row_factory = sqlite3.Row
@@ -229,7 +265,7 @@ def get_failures():
     return {"failures": failures}
 
 
-@app.get("/api/oracle-cases")
+@app.get("/api/oracle-cases", tags=["Benchmark"])
 def get_oracle_cases():
     try:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -242,7 +278,7 @@ def get_oracle_cases():
         return {}
 
 
-@app.get("/api/health")
+@app.get("/api/health", tags=["System"])
 def get_health():
     db_path = get_current_db_path()
     try:
@@ -269,7 +305,7 @@ def get_health():
         )
 
 
-@app.get("/api/stats")
+@app.get("/api/stats", tags=["System"])
 def get_stats():
     db_path = get_current_db_path()
     try:
@@ -315,8 +351,14 @@ def get_stats():
         raise HTTPException(status_code=500, detail=f"Failed to calculate stats: {str(e)}")
 
 
-@app.get("/api/export/facts")
+@app.get("/api/export/facts", tags=["Export"])
 def export_facts(format: str = "csv"):
+    if format.lower() not in ("csv", "json"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported format '{format}'. Supported formats: 'csv', 'json'"
+        )
+
     conn = sqlite3.connect(get_current_db_path())
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -355,8 +397,14 @@ def export_facts(format: str = "csv"):
     )
 
 
-@app.get("/api/export/relations")
+@app.get("/api/export/relations", tags=["Export"])
 def export_relations(format: str = "csv"):
+    if format.lower() not in ("csv", "json"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported format '{format}'. Supported formats: 'csv', 'json'"
+        )
+
     conn = sqlite3.connect(get_current_db_path())
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()

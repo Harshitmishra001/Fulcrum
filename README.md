@@ -33,20 +33,24 @@ uvicorn src.app_v2:app --reload
 Navigate to `http://localhost:8000` in your browser. You can upload PDFs via the UI and inspect the extracted facts and how they relate to each other.
 
 ### 5. Running Tests
-Fulcrum includes a full test suite of 46 automated tests across 15 test suites covering period normalization, entity resolution, tolerance thresholds, database integrity, prompt injection resistance, upload security, and API health/stats monitoring. All tests run locally without requiring a live API key:
+Fulcrum includes a full test suite of 54 automated tests across 17 test suites covering period normalization, entity resolution, tolerance thresholds, database integrity, prompt injection resistance, upload security, OpenAPI compliance, and API health/stats monitoring. All tests run locally without requiring a live API key:
 ```bash
-# Run all 46 tests across the entire test suite
+# Run all tests across the entire test suite
 pytest -v
 
 # Or run specific test modules
 pytest tests/test_e2e_fixture.py -v
+pytest tests/test_api_openapi.py -v
 pytest tests/test_api_health_stats.py -v
 ```
 
-### 6. API Endpoints
+### 6. API Documentation & Endpoints
+Interactive Swagger API documentation is available at `http://localhost:8000/docs` (or OpenAPI JSON schema at `/openapi.json`).
+
+- `GET /docs` — Interactive Swagger UI documentation for all endpoints.
 - `GET /api/health` — Returns system operational status, database connectivity, and active row totals.
 - `GET /api/stats` — Breakdown of facts by source document and relations by type (`corroboration`, `contradiction`, `reconciliation`).
-- `GET /api/facts/search?entity=...&attribute=...` — Filter and query active facts.
+- `GET /api/facts/search?entity=...&attribute=...` — Filter and query active facts with input bounds.
 - `GET /api/export/facts?format=csv|json` — Export verified facts as CSV or JSON download.
 - `GET /api/export/relations?format=csv|json` — Export cross-document relations as CSV or JSON download.
 - `GET /api/oracle-cases` — Ground-truth benchmark fixture for the 4 core cases.
