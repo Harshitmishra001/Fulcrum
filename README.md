@@ -104,9 +104,32 @@ Fulcrum processes documents through a clear, multi-step pipeline:
 - **Single AI Model:** I used a single capable model (GPT-4o-mini) for all reasoning steps instead of trying to chain multiple smaller models together. This made the results much more consistent and easier to debug.
 - **Externalized Configuration:** Rather than hardcoding domain keywords or agency aliases in code, domain heuristics are externalized into editable JSON files in the `config/` directory (`authority_cues.json`, `comparison_rules.json`, and `entity_aliases.json`).
 - **Upload Validation & Hardening:** File uploads via `/api/upload` enforce `%PDF-` magic-byte checks, a 50MB size ceiling, and structural parsing verification to fail fast with clean HTTP 400 errors instead of failing silently in background tasks.
+- **Data Export & Interoperability:** Added programmatic CSV and JSON export endpoints (`/api/export/facts`, `/api/export/relations`) with RFC-compliant attachment headers and one-click dashboard export buttons, enabling analysts to extract verified knowledge graphs directly into external analytics pipelines.
 - **Simple, Reliable UI:** I chose to build the UI with plain HTML and JavaScript rather than a complex framework like React. This ensures the app is easy to run and won't fail due to complex setup tools during a demo.
 - **Strict Evidence Rules:** If a fact doesn't have an exact source quote from the PDF, it is dropped. I prioritized honesty—admitting a fact is "unresolved" is better than letting the AI make up an explanation.
 - **Database Choice:** I used SQLite (a built-in relational database) instead of a complex Graph Database. It's much easier to set up, requires no extra servers, and easily handles caching so we don't waste API credits re-processing the same document.
+- **Continuous Integration Pipeline:** Automated GitHub Actions workflow (`.github/workflows/ci.yml`) executes the complete test suite on every push and PR to ensure regression-free releases.
+
+### Project Structure
+```text
+Fulcrum/
+├── .github/workflows/   # Automated CI/CD pipeline
+├── config/              # Externalized domain cues, aliases, and comparison rules
+│   ├── authority_cues.json
+│   ├── comparison_rules.json
+│   └── entity_aliases.json
+├── src/
+│   ├── app_v2.py        # FastAPI REST API, OpenAPI docs, and static routes
+│   ├── comparison/      # Entity resolution, embedding similarity, and comparison engine
+│   ├── db/              # Thread-safe SQLite persistence and schema initialization
+│   ├── extractor/       # LLM extraction with exact verbatim quote grounding
+│   ├── normalizer/      # Pure deterministic unit and period normalization
+│   ├── parser/          # PDF table and prose extraction with quarantine safeguards
+│   └── templates/       # Vanilla JavaScript and HTML dashboard
+├── tests/               # 54 automated pytest unit, security, and integration tests
+├── required_cases.json  # Ground-truth oracle evaluation fixture
+└── FIGURES.md           # Manually verified ground-truth reference values
+```
 
 ## Four Required Cases 
 The system successfully finds and explains the four required cases (verified manually in `FIGURES.md`):
